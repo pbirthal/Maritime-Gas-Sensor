@@ -406,3 +406,113 @@ async function showSensorDetails(sensorId) {
     alert('Could not load sensor details.');
   }
 }
+function showDockYardShips() {
+  console.log(SHIPS_CACHE);
+  const modal = document.getElementById("dockyardModal");
+  const shipList = document.getElementById("shipList");
+  shipList.innerHTML = ""; // Clear previous
+
+  SHIPS_CACHE.forEach(ship => {
+    const card = document.createElement('div');
+    card.className = 'ship-status';
+    const statusLabel = ship.status === 'Danger' ? 'In Danger' : ship.status;
+    const shipIconHTML = ship.image ? `<img src="${ship.image}" alt="${ship.name}">` : '🚢';
+    card.innerHTML = `
+      <div class="ship-icon">${shipIconHTML}</div>
+      <div class="ship-status-name" title="${ship.name}">${ship.name}</div>
+      <div class="badge ${badgeFor(ship.status)}">${statusLabel}</div>
+    `;
+    shipList.appendChild(card);
+  });
+
+  modal.style.display = "block";
+}
+function showDockYardShipsWIP() {
+  console.log(SHIPS_CACHE);
+  const modal = document.getElementById("dockyardModal");
+  const shipList = document.getElementById("shipList");
+  shipList.innerHTML = ""; // Clear previous
+  
+  // Filter ships with status "WIP"
+  const wipShips = SHIPS_CACHE.filter(ship => ship.status === 'WIP');
+  wipShips.forEach(ship => {
+    const card = document.createElement('div');
+    card.className = 'ship-status';
+    const statusLabel = ship.status === 'Danger' ? 'In Danger' : ship.status;
+    const shipIconHTML = ship.image ? `<img src="${ship.image}" alt="${ship.name}">` : '🚢';
+    card.innerHTML = `
+      <div class="ship-icon">${shipIconHTML}</div>
+      <div class="ship-status-name" title="${ship.name}">${ship.name}</div>
+      <div class="badge ${badgeFor(ship.status)}">${statusLabel}</div>
+    `;
+    shipList.appendChild(card);
+  });
+
+  modal.style.display = "block";
+}
+function showWorkingPersonnel() {
+  console.log(SHIPS_CACHE);
+  const modal = document.getElementById("dockyardModal");
+  const shipList = document.getElementById("shipList");
+  shipList.innerHTML = ""; // Clear previous
+  
+  SHIPS_CACHE.forEach(ship => {
+    const card = document.createElement('div');
+    card.className = 'ship-status';
+    const shipIconHTML = ship.image ? `<img src="${ship.image}" alt="${ship.name}">` : '🚢';
+    card.innerHTML = `
+      <div class="ship-icon">${shipIconHTML}</div>
+      <div class="ship-status-name" title="${ship.name}">${ship.name}</div>
+      <div class="badge">${ship.personnel}</div>
+    `;
+    shipList.appendChild(card);
+  });
+
+  modal.style.display = "block";
+}
+
+function showDockYardShipsDanger() {
+  console.log(SHIPS_CACHE);
+  const modal = document.getElementById("dockyardModal");
+  const shipList = document.getElementById("shipList");
+  shipList.innerHTML = ""; // Clear previous
+  
+  // Filter ships with status "WIP"
+  const wipShips = SHIPS_CACHE.filter(ship => ship.status === 'Danger');
+  wipShips.forEach(ship => {
+    const card = document.createElement('div');
+    card.className = 'ship-status';
+    const statusLabel = ship.status === 'Danger' ? 'In Danger' : ship.status;
+    const shipIconHTML = ship.image ? `<img src="${ship.image}" alt="${ship.name}">` : '🚢';
+    card.innerHTML = `
+      <div class="ship-icon">${shipIconHTML}</div>
+      <div class="ship-status-name" title="${ship.name}">${ship.name}</div>
+      <div class="badge ${badgeFor(ship.status)}">${statusLabel}</div>
+    `;
+    shipList.appendChild(card);
+  });
+
+  modal.style.display = "block";
+}
+// Helper for status color
+function getStatusColor(status) {
+  switch (status.toLowerCase()) {
+    case "wip": return "green";
+    case "idle": return "gray";
+    case "in danger": return "red";
+    default: return "black";
+  }
+}
+
+// Close modal
+function closeDockyardModal() {
+  document.getElementById("dockyardModal").style.display = "none";
+}
+
+// Optional: Close when clicking outside
+window.onclick = function(event) {
+  const modal = document.getElementById("dockyardModal");
+  if (event.target === modal) {
+    modal.style.display = "none";
+  }
+};
