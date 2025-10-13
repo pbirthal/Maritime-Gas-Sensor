@@ -370,8 +370,9 @@ body.emergency-active {
     margin-top: 8px;
     min-height: 18px;
 }
+
 /* Modal background */
-.modal {
+.modal-dockyard {
   display: none;
   position: fixed;
   z-index: 999;
@@ -384,7 +385,7 @@ body.emergency-active {
 }
 
 /* Modal box */
-.modal-content {
+.modal-card-dockyard {
   background-color: #111b27;
   margin: 5% auto;
   padding: 20px;
@@ -393,7 +394,6 @@ body.emergency-active {
   max-width: 900px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 }
-
 /* Close button */
 .close-btn {
   float: right;
