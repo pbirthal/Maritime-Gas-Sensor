@@ -1,0 +1,125 @@
+:root{
+  --bg:#0b1520;
+  --panel:#111b27;
+  --panel-2:#0f1a25;
+  --text:#d9e2ec;
+  --muted:#9fb3c8;
+  --ok:#36c98e;
+  --warn:#ffb020;
+  --danger:#ff4d4f;
+  --blue:#2f81f7;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:linear-gradient(180deg,#0a1420,#09111a);
+  font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;
+  color:var(--text);
+}
+
+.topbar{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 18px;background:#0e1926;border-bottom:1px solid #122235
+}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-title{font-weight:700;letter-spacing:.3px}
+.brand-emoji{font-size:20px;opacity:.85}
+.brand-divider{opacity:.4;margin:0 8px}
+.userbox{display:flex;gap:16px;color:var(--muted)}
+
+.layout{display:grid;grid-template-columns:280px 1fr;gap:16px;padding:16px}
+.leftcol{display:flex;flex-direction:column;gap:12px}
+.maincol{display:flex;flex-direction:column;gap:16px}
+
+.statcard{
+  background:var(--panel);padding:14px;border-radius:12px;border:1px solid #123;
+}
+.statcard.warn{border-color:rgba(255,176,32,.35)}
+.statcard.danger{border-color:rgba(255,77,79,.45)}
+.stat-title{color:var(--muted);font-size:12px;letter-spacing:.3px}
+.stat-value{font-size:28px;font-weight:700;margin-top:6px}
+
+.btn,.btn-danger,.btn-warn{
+  border:0;border-radius:10px;padding:12px 14px;font-weight:700;
+  cursor:pointer;color:#fff;transition:.2s transform;
+}
+.btn{background:#2c4964}
+.btn:hover{transform:translateY(-1px)}
+.btn-danger{background:var(--danger)}
+.btn-warn{background:var(--warn);color:#1b1b1b}
+.link{color:#9ccaff;text-decoration:none}
+
+.section-title{font-size:18px;font-weight:800;letter-spacing:.5px;margin:2px 0}
+.section-title.small{font-size:14px;font-weight:700;color:var(--muted)}
+
+.ships-row{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px
+}
+.ship-status{
+  background:var(--panel);border:1px solid #123;border-radius:16px;padding:18px;text-align:center
+}
+.ship-icon{font-size:46px;margin-bottom:8px}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px}
+.badge.gray{background:#2a3340}
+.badge.ok{background:rgba(54,201,142,.18);color:#7deaba}
+.badge.warn{background:rgba(255,176,32,.18);color:#ffd38a}
+.badge.danger{background:rgba(255,77,79,.18);color:#ff9a9c}
+
+.shipcards-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.shipcard{
+  background:var(--panel-2);border:1px solid #123;border-radius:16px;padding:12px;
+  display:flex;flex-direction:column;gap:10px
+}
+.shipmeta{font-size:12px;color:var(--muted);line-height:1.35}
+.shipname{font-weight:800;color:#fff}
+.enter{align-self:flex-end}
+
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}
+.hidden{display:none}
+.modal-card{background:#0e1926;padding:20px;border-radius:14px;border:1px solid #123;max-width:420px}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:12px}
+
+/* Ship page */
+.tanknav{display:flex;flex-direction:column;gap:8px}
+.tankbtn{
+  background:#132233;border:1px solid #17314a;color:#d1e0f0;border-radius:10px;padding:10px;cursor:pointer;text-align:left
+}
+.tankbtn.active,.tankbtn:hover{border-color:#2f81f7;background:#19324a}
+
+.logcard{background:var(--panel);border:1px solid #123;border-radius:12px;padding:12px;margin-top:12px}
+.plain{list-style:none;margin:8px 0 0;padding:0}
+.logs{height:160px;overflow:auto;background:#0c1723;border:1px solid #123;border-radius:8px;padding:8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.mt{margin-top:12px}
+
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.kpi{background:var(--panel);border:1px solid #123;border-radius:16px;padding:14px}
+.kpi-name{font-weight:700;color:var(--muted)}
+.kpi-value{font-size:34px;font-weight:800;margin:6px 0}
+.kpi.ok .kpi-value{color:var(--ok)}
+.kpi.warn .kpi-value{color:var(--warn)}
+.kpi.danger .kpi-value{color:var(--danger)}
+.spark{height:26px;background:linear-gradient(180deg,#0e1b28,#0b1520);border-radius:8px;border:1px dashed #1c2f44;opacity:.8}
+
+.sensors-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.sensor{
+  background:#0e1926;border:1px solid #123;border-radius:12px;padding:10px
+}
+.sensor-top{display:flex;justify-content:space-between}
+.sensor-id{font-weight:700}
+.sensor-state.ok{color:var(--ok)} .sensor-state.warn{color:var(--warn)} .sensor-state.danger{color:var(--danger)}
+.sensor-val{font-size:22px;font-weight:800;margin-top:6px}
+
+.permits-actions{
+  display:grid;grid-template-columns:1fr auto;gap:14px;margin-top:10px;align-items:start
+}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+@media (max-width: 1100px){
+  .layout{grid-template-columns:1fr}
+  .ships-row,.shipcards-row,.kpis,.sensors-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width: 640px){
+  .ships-row,.shipcards-row,.kpis,.sensors-grid{grid-template-columns:1fr}
+}

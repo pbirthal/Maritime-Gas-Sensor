@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Proposed Dashboard – Page 2</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="styles.css" rel="stylesheet" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <a href="index.html" class="brand-title link">⟵ Back</a>
+      <span class="brand-divider">|</span>
+      <span class="brand-title">COCHIN SHIPYARD</span>
+      <span class="brand-emoji">🛳️</span>
+    </div>
+    <div class="userbox">
+      <span id="shipTitle">Ship: —</span>
+      <span>Time: <strong id="nowTime">—</strong></span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- LEFT NAV (Tanks) + LOGS -->
+    <aside class="leftcol">
+      <nav class="tanknav" id="tankNav">
+        <!-- Tanks injected -->
+      </nav>
+
+      <div class="logcard">
+        <div class="stat-title">Totals</div>
+        <ul class="plain">
+          <li>Personnel: <strong id="totPersonnel">—</strong></li>
+          <li>Spaces in Warning: <strong id="totWarn">—</strong></li>
+          <li>Spaces in Danger: <strong id="totDanger">—</strong></li>
+        </ul>
+
+        <div class="stat-title mt">Alarm Logs</div>
+        <div id="alarmLogs" class="logs"></div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="maincol">
+      <h2 class="section-title" id="tankTitle">Avg. Readings —</h2>
+
+      <!-- KPI CARDS -->
+      <div class="kpis">
+        <div class="kpi" data-sensor="O2">
+          <div class="kpi-name">O₂</div>
+          <div class="kpi-value" id="kpiO2">—</div>
+          <div class="spark" id="sparkO2"></div>
+        </div>
+        <div class="kpi" data-sensor="CO">
+          <div class="kpi-name">CO</div>
+          <div class="kpi-value" id="kpiCO">—</div>
+          <div class="spark" id="sparkCO"></div>
+        </div>
+        <div class="kpi" data-sensor="LEL">
+          <div class="kpi-name">LEL</div>
+          <div class="kpi-value" id="kpiLEL">—</div>
+          <div class="spark" id="sparkLEL"></div>
+        </div>
+      </div>
+
+      <!-- INDIVIDUAL SENSORS -->
+      <div class="section-title small">Individual Sensors</div>
+      <div id="sensorsWrap" class="sensors-grid">
+        <!-- Sensor tiles injected -->
+      </div>
+
+      <!-- PERMITS + ACTIONS -->
+      <div class="permits-actions">
+        <div class="permits">
+          <div class="section-title small">Permit Summary</div>
+          <ul class="plain">
+            <li>No. of Persons inside: <strong id="pCount">3</strong></li>
+            <li>Time of Entry: <strong id="entryTime">12:00 hrs</strong></li>
+            <li>Designated Officer: <strong id="officer">Capt ABC</strong></li>
+            <li>Enclosed Space Permit: <input type="checkbox" checked /></li>
+            <li>Hot Work Permit: <input type="checkbox" /></li>
+          </ul>
+        </div>
+        <div class="actions">
+          <button class="btn" id="ackBtn">Ack Alarm</button>
+          <button class="btn-warn" id="evacBtn">Initiate Evacuation Protocol</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- EVAC CONFIRM -->
+  <div id="evacModal" class="modal hidden">
+    <div class="modal-card">
+      <h3>Initiate Evacuation?</h3>
+      <p>All personnel in this tank will be notified and exit routes highlighted.</p>
+      <div class="modal-actions">
+        <button class="btn" id="evacCancel">Cancel</button>
+        <button class="btn-warn" id="evacConfirm">Proceed</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    initClock('nowTime');
+    initShipPage(); // reads ?ship=... renders tanks, sensors, data loop
+  </script>
+</body>
+</html>

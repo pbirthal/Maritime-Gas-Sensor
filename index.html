@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Proposed Dashboard – Page 1</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="styles.css" rel="stylesheet" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-title">COCHIN SHIPYARD</span>
+      <span class="brand-emoji">⚓</span>
+    </div>
+    <div class="userbox">
+      <span>Username: <strong>abc</strong></span>
+      <span>Time: <strong id="nowTime">—</strong></span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- LEFT STATS -->
+    <aside class="leftcol">
+      <div class="statcard">
+        <div class="stat-title">Ships at Dockyard</div>
+        <div class="stat-value" id="shipsAtDock">0</div>
+      </div>
+      <div class="statcard">
+        <div class="stat-title">Ships under Operation</div>
+        <div class="stat-value" id="shipsUnderOp">0</div>
+      </div>
+      <div class="statcard">
+        <div class="stat-title">Total Personnel</div>
+        <div class="stat-value" id="totalPersonnel">0</div>
+      </div>
+      <div class="statcard warn">
+        <div class="stat-title">Spaces in Warning</div>
+        <div class="stat-value" id="spacesWarn">0</div>
+      </div>
+      <div class="statcard danger">
+        <div class="stat-title">Spaces in Danger</div>
+        <div class="stat-value" id="spacesDanger">0</div>
+      </div>
+
+      <button id="btnEmergency" class="btn-danger">RAISE EMERGENCY ALARM</button>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="maincol">
+      <h2 class="section-title">GAS MONITORING SYSTEM</h2>
+
+      <div id="shipsRow" class="ships-row">
+        <!-- Cards injected by JS -->
+      </div>
+
+      <h3 class="section-title">Active Ships</h3>
+      <div id="shipsList" class="shipcards-row">
+        <!-- List injected by JS -->
+      </div>
+    </main>
+  </div>
+
+  <!-- EMERGENCY MODAL -->
+  <div id="emModal" class="modal hidden">
+    <div class="modal-card">
+      <h3>Confirm Emergency Alarm</h3>
+      <p>This will notify all crews and trigger sirens. Proceed?</p>
+      <div class="modal-actions">
+        <button class="btn" id="cancelEm">Cancel</button>
+        <button class="btn-danger" id="confirmEm">Trigger Alarm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Boot Page 1
+    initClock('nowTime');
+    initOverview(); // renders ships, stats, binds emergency modal
+  </script>
+</body>
+</html>

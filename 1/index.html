@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MonitoringDashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="styles.css" rel="stylesheet" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-title">COCHIN SHIPYARD</span>
+      <span class="brand-emoji">⚓</span>
+    </div>
+    <div class="userbox">
+        <div id="emergencyMarquee" class="marquee hidden">
+            <span>EMERGENCY ALARM RAISED --- EMERGENCY ALARM RAISED ---&nbsp;</span>
+        </div>
+      <span>Username: <strong>abc</strong></span>
+      <span>Time: <strong id="nowTime">—</strong></span>
+      <button id="btnEmergency" class="btn-danger small">RAISE EMERGENCY ALARM</button>
+    </div>
+      <div class="brand">
+        <span class="brand-title">Dashboard</span>
+        <span class="brand-divider">|</span>
+        <a href="inventory.html" class="brand-title link">Equipment Inventory</a>
+      </div>
+  </header>
+
+  <div class="layout">
+    <aside class="leftcol">
+      <div class="statcard">
+        <div class="stat-title">Ships at Dockyard</div>
+        <div class="stat-value" id="shipsAtDock">0</div>
+      </div>
+      <div class="statcard">
+        <div class="stat-title">Ships under Operation</div>
+        <div class="stat-value" id="shipsUnderOp">0</div>
+      </div>
+      <div class="statcard">
+        <div class="stat-title">Total Personnel</div>
+        <div class="stat-value" id="totalPersonnel">0</div>
+      </div>
+      <div class="statcard warn">
+        <div class="stat-title">Spaces in Warning</div>
+        <div class="stat-value" id="spacesWarn">0</div>
+      </div>
+      <div class="statcard danger">
+        <div class="stat-title">Spaces in Danger</div>
+        <div class="stat-value" id="spacesDanger">0</div>
+      </div>
+    </aside>
+
+    <main class="maincol">
+      <h2 class="section-title">GAS MONITORING SYSTEM</h2>
+
+      <div id="shipsRow" class="ships-row">
+        <div class="ship-status-add" id="addShipBtn" title="Add New Ship">
+          <div class="add-icon">+</div>
+        </div>
+      </div>
+
+      <h3 class="section-title">Active Ships</h3>
+      <div id="shipsList" class="shipcards-row">
+        </div>
+    </main>
+  </div>
+
+  <div id="emModal" class="modal hidden">
+    <div class="modal-card">
+      <h3>Confirm Emergency Alarm</h3>
+      <p>This will notify all crews and trigger sirens. Proceed?</p>
+      <div class="modal-actions">
+        <button class="btn" id="cancelEm">Cancel</button>
+        <button class="btn-danger" id="confirmEm">Trigger Alarm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="addShipModal" class="modal hidden">
+    <div class="modal-card">
+      <h3>Add New Ship</h3>
+      <form id="addShipForm" class="modal-form">
+        <label>Ship Name</label>
+        <input type="text" id="newShipName" placeholder="e.g., MV Neptune" required>
+        <label>Last Port of Call</label>
+        <input type="text" id="newShipPort" placeholder="e.g., Singapore" required>
+        <label>Personnel on Board</label>
+        <input type="number" id="newShipPersonnel" value="10" required>
+        <label>Ship Image (Optional)</label>
+        <input type="file" id="newShipImage" accept="image/*">
+        <div class="modal-actions">
+          <button type="button" class="btn" id="cancelAddShip">Cancel</button>
+          <button type="submit" class="btn-confirm">Add Ship</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="editShipModal" class="modal hidden">
+    <div class="modal-card">
+      <h3>Edit Ship Details</h3>
+      <form id="editShipForm" class="modal-form">
+        <input type="hidden" id="editShipId">
+        <label>Ship Name</label>
+        <input type="text" id="editShipName" required>
+        <label>Last Port of Call</label>
+        <input type="text" id="editShipPort" required>
+        <label>Personnel on Board</label>
+        <input type="number" id="editShipPersonnel" required>
+        <label>Ship Image (Optional: choose new image to replace)</label>
+        <input type="file" id="editShipImage" accept="image/*">
+        <div class="modal-actions">
+          <button type="button" class="btn" id="cancelEditShip">Cancel</button>
+          <button type="submit" class="btn-confirm">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  
+  <script src="app.js"></script>
+  <script>
+    // Boot Page 1
+    initClock('nowTime');
+    initOverview(); // renders ships, stats, binds modals
+  </script>
+</body>
+</html>
