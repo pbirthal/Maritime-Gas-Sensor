@@ -28,16 +28,16 @@
   </header>
 
   <div class="layout">
-    <aside class="leftcol">
-      <div class="statcard">
+        <aside class="leftcol">
+      <div class="statcard" onclick="showDockYardShips()">
         <div class="stat-title">Ships at Dockyard</div>
         <div class="stat-value" id="shipsAtDock">0</div>
       </div>
-      <div class="statcard">
+      <div class="statcard" onclick="showDockYardShipsWIP()">
         <div class="stat-title">Ships under Operation</div>
         <div class="stat-value" id="shipsUnderOp">0</div>
       </div>
-      <div class="statcard">
+      <div class="statcard" onclick="showWorkingPersonnel()">
         <div class="stat-title">Total Personnel</div>
         <div class="stat-value" id="totalPersonnel">0</div>
       </div>
@@ -45,7 +45,7 @@
         <div class="stat-title">Spaces in Warning</div>
         <div class="stat-value" id="spacesWarn">0</div>
       </div>
-      <div class="statcard danger">
+      <div class="statcard danger" onclick="showDockYardShipsDanger()">
         <div class="stat-title">Spaces in Danger</div>
         <div class="stat-value" id="spacesDanger">0</div>
       </div>
