@@ -22,6 +22,7 @@ class Ship(Base):
     live_o2 = Column(Float, nullable=True)
     live_co = Column(Float, nullable=True)
     live_lel = Column(Float, nullable=True)
+    live_h2s = Column(Float, nullable=True)
     tanks = relationship("Tank", back_populates="owner_ship", cascade="all, delete-orphan")
 
 class Tank(Base):
@@ -77,6 +78,8 @@ class TankThreshold(Base):
     danger_co_high = Column(Float, nullable=True)
     warn_lel_high = Column(Float, nullable=True)
     danger_lel_high = Column(Float, nullable=True)
+    warn_h2s_high = Column(Float, nullable=True)
+    danger_h2s_high = Column(Float, nullable=True)
 
     # relationship if you want backref (optional)
     tank = relationship("Tank", backref="threshold")
@@ -91,7 +94,7 @@ class ReadingArchive(Base):
     o2 = Column(Float, nullable=True)
     co = Column(Float, nullable=True)
     lel = Column(Float, nullable=True)
-
+    h2s = Column(Float, nullable=True)
 
 # --- Pydantic Schemas (For API Validation) ---
 
@@ -141,6 +144,7 @@ class ShipSchema(BaseModel):
     live_o2: Optional[float] = None
     live_co: Optional[float] = None
     live_lel: Optional[float] = None
+    live_h2s: Optional[float] = None
     class Config: from_attributes = True
 
 # Schemas for creating/updating data
@@ -171,5 +175,7 @@ class TankThresholdSchema(BaseModel):
     danger_co_high: Optional[float] = 100.0
     warn_lel_high: Optional[float] = 5.0
     danger_lel_high: Optional[float] = 10.0
+    warn_h2s_high: Optional[float] = 10.0
+    danger_h2s_high: Optional[float] = 15.0
     class Config:
         from_attributes = True

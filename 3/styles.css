@@ -154,7 +154,7 @@ body.emergency-active {
 
 .kpi-thresholds { margin-top: .5rem; font-size: 12px; opacity: .85; }
 .kpi-thresholds code { padding: 0 .25rem; }
-.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .kpi{background:var(--panel);border:1px solid #123;border-radius:16px;padding:14px}
 .kpi-name{font-weight:700;color:var(--muted)}
 .kpi-value{font-size:34px;font-weight:800;margin:6px 0}
@@ -452,6 +452,7 @@ body.emergency-active {
 .thr-chip.o2   { background: rgba(59,130,246,.10); color: #1d4ed8; }    /* blue-ish */
 .thr-chip.co   { background: rgba(234,88,12,.10); color: #9a3412; }     /* amber/orange */
 .thr-chip.lel  { background: rgba(16,185,129,.12); color: #065f46; }    /* teal/green */
+.thr-chip.h2s  { background: rgba(16,185,129,.12); color: #d5f838; }    /* teal/green */
 
 /* Toasts */
 #toastBox{

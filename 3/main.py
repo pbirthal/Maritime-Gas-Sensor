@@ -42,19 +42,23 @@ DEFAULT_THRESHOLDS = {
     "danger_co_high": 100.0,
     "warn_lel_high": 5.0,
     "danger_lel_high": 10.0,
+    "warn_h2s_high": 10.0,
+    "danger_h2s_high": 15.0,
 }
 
-def evaluate_state(o2, co, lel, t):
+def evaluate_state(o2, co, lel, h2s, t):
     """Return 'Danger' | 'Warning' | 'OK' based on thresholds dict t."""
     # danger first
     if (o2 is not None and o2 <= t["danger_o2_low"]) or \
        (co is not None and co >= t["danger_co_high"]) or \
-       (lel is not None and lel >= t["danger_lel_high"]):
+       (lel is not None and lel >= t["danger_lel_high"]) or \
+        (h2s is not None and h2s >= t["danger_h2s_high"]):
         return "Danger"
     # then warning
     if (o2 is not None and o2 <= t["warn_o2_low"]) or \
        (co is not None and co >= t["warn_co_high"]) or \
-       (lel is not None and lel >= t["warn_lel_high"]):
+       (lel is not None and lel >= t["warn_lel_high"]) or \
+        (h2s is not None and h2s >= t["warn_h2s_high"]):
         return "Warning"
     return "OK"
 
@@ -63,6 +67,7 @@ def _agg_from_sensors(sensors_dict):
     o2s  = [v.get("O2")  for v in sensors_dict.values() if v.get("O2")  is not None]
     cos  = [v.get("CO")  for v in sensors_dict.values() if v.get("CO")  is not None]
     lels = [v.get("LEL") for v in sensors_dict.values() if v.get("LEL") is not None]
+    h2s = [v.get("H2S") for v in sensors_dict.values() if v.get("H2S") is not None]
 
     def _max_or_none(arr): return max(arr) if arr else None
     def _min_or_none(arr): return min(arr) if arr else None
@@ -72,12 +77,14 @@ def _agg_from_sensors(sensors_dict):
         "O2":  _max_or_none(o2s),
         "CO":  _max_or_none(cos),
         "LEL": _max_or_none(lels),
+        "H2S": _max_or_none(h2s),
     }
     worst = {
         # what we should use for safety state vs thresholds
         "O2":  _min_or_none(o2s),    # lower O2 is worse
         "CO":  _max_or_none(cos),    # higher CO is worse
         "LEL": _max_or_none(lels),   # higher LEL is worse
+        "H2S": _max_or_none(h2s),   # higher H2S is worse
     }
     return display, worst
 
@@ -272,8 +279,8 @@ def get_tank_live(ship_id: str, tank_id: int):
         return {
             "updated_at": None,
             "sensors": {},
-            "aggregates": {"display": {"O2": None, "CO": None, "LEL": None},
-                           "worst":   {"O2": None, "CO": None, "LEL": None}}
+            "aggregates": {"display": {"O2": None, "CO": None, "LEL": None, "H2S": None},
+                           "worst":   {"O2": None, "CO": None, "LEL": None, "H2S": None}}
         }
     return bucket
 
@@ -358,7 +365,7 @@ def get_readings(ship_id: str, tank_id: int, minutes: int = Query(60, ge=1, le=1
                       models.ReadingArchive.timestamp >= cutoff)
               .order_by(models.ReadingArchive.timestamp.asc())
               .all())
-    return [{"ts": r.timestamp.isoformat(), "O2": r.o2, "CO": r.co, "LEL": r.lel} for r in rows]
+    return [{"ts": r.timestamp.isoformat(), "O2": r.o2, "CO": r.co, "LEL": r.lel,"H2S": r.h2s} for r in rows]
 
 
 # ===================================================================
@@ -413,11 +420,11 @@ def on_message(client, userdata, msg):
             if not sid: 
                 continue
             # normalize numeric fields
-            bucket["sensors"][sid] = {"O2": r.get("O2"), "CO": r.get("CO"), "LEL": r.get("LEL")}
+            bucket["sensors"][sid] = {"O2": r.get("O2"), "CO": r.get("CO"), "LEL": r.get("LEL"), "H2S": r.get("H2S")}
             # 2) Archive each sensor reading (optional but useful)
             db.add(models.ReadingArchive(
                 ship_id=ship_id, tank_id=tank_id,
-                o2=r.get("O2"), co=r.get("CO"), lel=r.get("LEL")
+                o2=r.get("O2"), co=r.get("CO"), lel=r.get("LEL"), h2s=r.get("H2S")
             ))
         disp, worst = _agg_from_sensors(bucket["sensors"])
         bucket["aggregates"] = {"display": disp, "worst": worst}
@@ -435,13 +442,14 @@ def on_message(client, userdata, msg):
                         T[k] = v
 
         # 4) Use WORST aggregate to evaluate safety (correct severity)
-        new_state = evaluate_state(worst.get("O2"), worst.get("CO"), worst.get("LEL"), T)
+        new_state = evaluate_state(worst.get("O2"), worst.get("CO"), worst.get("LEL"), worst.get("H2S"), T)
         prev = ship.status or "Idle"
 
         # 5) Put DISPLAY aggregate on ship.live_* so your current UI shows the overview
         ship.live_o2  = disp.get("O2")
         ship.live_co  = disp.get("CO")
         ship.live_lel = disp.get("LEL")
+        ship.live_h2s = disp.get("H2S")
 
         # 6) Log transitions + set ship status (ack still required to clear Danger)
         sink = db.query(models.MasterSensor).filter(models.MasterSensor.type=="Multi-gas").first()
@@ -452,12 +460,12 @@ def on_message(client, userdata, msg):
         if new_state == "Danger" and prev != "Danger":
             ship.previousStatus = ship.status
             ship.status = "Danger"
-            log_event("Danger", f"[tank {tank_id}] worst O2={worst.get('O2')}, CO={worst.get('CO')}, LEL={worst.get('LEL')}")
+            log_event("Danger", f"[tank {tank_id}] worst O2={worst.get('O2')}, CO={worst.get('CO')}, LEL={worst.get('LEL')}, H2S={worst.get('H2S')}")
         elif new_state == "Warning" and prev not in ("Danger","Warning"):
             ship.status = "Warning"
-            log_event("Warning", f"[tank {tank_id}] worst O2={worst.get('O2')}, CO={worst.get('CO')}, LEL={worst.get('LEL')}")
+            log_event("Warning", f"[tank {tank_id}] worst O2={worst.get('O2')}, CO={worst.get('CO')}, LEL={worst.get('LEL')}, H2S={worst.get('H2S')}")
         elif new_state == "OK" and prev in ("Danger","Warning"):
-            log_event("Clear", f"[tank {tank_id}] recovered; worst O2={worst.get('O2')}, CO={worst.get('CO')}, LEL={worst.get('LEL')}")
+            log_event("Clear", f"[tank {tank_id}] recovered; worst O2={worst.get('O2')}, CO={worst.get('CO')}, LEL={worst.get('LEL')}, H2S={worst.get('H2S')}")
 
         db.commit()
     except Exception as e:

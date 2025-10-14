@@ -335,6 +335,11 @@ function showThresholdsText(T) {
         <span class="mini">warn ≥</span> <span class="val">${T.warn_lel_high}%</span>
         <span class="mini">danger ≥</span> <span class="val">${T.danger_lel_high}%</span>
       </div>
+      <div class="thr-chip h2s">
+        <strong>H2S</strong>
+        <span class="mini">warn ≥</span> <span class="val">${T.warn_h2s_high}%</span>
+        <span class="mini">danger ≥</span> <span class="val">${T.danger_h2s_high}%</span>
+      </div>
     </div>
   `;
 }
@@ -359,15 +364,18 @@ function renderShipKPIsWithThresholds(ship) {
   $('#kpiO2')  && ($('#kpiO2').textContent  = fmt(ship.live_o2));
   $('#kpiCO')  && ($('#kpiCO').textContent  = fmt(ship.live_co));
   $('#kpiLEL') && ($('#kpiLEL').textContent = fmt(ship.live_lel));
+  $('#kpiH2S') && ($('#kpiH2S').textContent = fmt(ship.live_h2s));
 
   const T = CURRENT_THRESHOLDS || {
     warn_o2_low:19.5, danger_o2_low:18,
     warn_co_high:35,  danger_co_high:100,
-    warn_lel_high:5,  danger_lel_high:10
+    warn_lel_high:5,  danger_lel_high:10,
+    warn_h2s_high:5,  danger_h2s_high:10
   };
   setKPIState('kpiO2',  ship.live_o2,  T.warn_o2_low,  T.danger_o2_low,  true);
   setKPIState('kpiCO',  ship.live_co,  T.warn_co_high, T.danger_co_high, false);
   setKPIState('kpiLEL', ship.live_lel, T.warn_lel_high,T.danger_lel_high,false);
+  setKPIState('kpiH2S', ship.live_h2s, T.warn_h2s_high,T.danger_h2s_high,false);
 }
 
 /* Render live sensor tiles for the selected tank */
@@ -380,6 +388,7 @@ function renderTankSensorsLiveMapToTiles(sensorsMap) {
     const o2  = (vals.O2  ?? '—');
     const co  = (vals.CO  ?? '—');
     const lel = (vals.LEL ?? '—');
+    const h2s = (vals.H2S ?? '—');
     return `
       <div class="sensor">
         <div class="sensor-top">
@@ -388,6 +397,7 @@ function renderTankSensorsLiveMapToTiles(sensorsMap) {
         <div class="sensor-val">O₂: <strong>${o2}</strong>%</div>
         <div class="sensor-val">CO: <strong>${co}</strong> ppm</div>
         <div class="sensor-val">LEL: <strong>${lel}</strong>%</div>
+        <div class="sensor-val">H2S: <strong>${h2s}</strong>%</div>
       </div>
     `;
   }).join('');
@@ -423,7 +433,8 @@ async function onTankSelected(shipId, tankId) {
   showThresholdsText(CURRENT_THRESHOLDS || {
     warn_o2_low:19.5, danger_o2_low:18,
     warn_co_high:35,  danger_co_high:100,
-    warn_lel_high:5,  danger_lel_high:10
+    warn_lel_high:5,  danger_lel_high:10,
+    warn_h2s_high:10,  danger_h2s_high:15,
   });
 
   try {
@@ -433,6 +444,7 @@ async function onTankSelected(shipId, tankId) {
     currentShip.live_o2  = live.aggregates?.display?.O2  ?? currentShip.live_o2;
     currentShip.live_co  = live.aggregates?.display?.CO  ?? currentShip.live_co;
     currentShip.live_lel = live.aggregates?.display?.LEL ?? currentShip.live_lel;
+    currentShip.live_h2s = live.aggregates?.display?.H2S ?? currentShip.live_h2s;
   } catch (e) {
     console.warn('Live tank fetch failed', e);
   }
@@ -488,6 +500,7 @@ async function initShipPage() {
             currentShip.live_o2  = live.aggregates?.display?.O2  ?? currentShip.live_o2;
             currentShip.live_co  = live.aggregates?.display?.CO  ?? currentShip.live_co;
             currentShip.live_lel = live.aggregates?.display?.LEL ?? currentShip.live_lel;
+            currentShip.live_h2s = live.aggregates?.display?.H2S ?? currentShip.live_h2s;
           } catch(e) { /* keep last visuals if live fails */ }
         }
         renderShipKPIsWithThresholds(currentShip);
@@ -528,9 +541,11 @@ function renderShipKPIs(ship){
   const elO2 = document.getElementById('kpiO2');
   const elCO = document.getElementById('kpiCO');
   const elLEL = document.getElementById('kpiLEL');
+  const elH2S = document.getElementById('kpiH2S');
   if (elO2) elO2.textContent = fmt(ship.live_o2);
   if (elCO) elCO.textContent = fmt(ship.live_co);
   if (elLEL) elLEL.textContent = fmt(ship.live_lel);
+  if (elH2S) elH2S.textContent = fmt(ship.live_h2s);
 }
 
 function selectTank(ship, tankId) {
@@ -895,6 +910,39 @@ function drawSpark(containerId, series, key, minY, maxY){
     <polyline points="${pts.join(' ')}" fill="none" stroke="currentColor" stroke-width="2" opacity="0.9"/>
   </svg>`;
 }
+function drawSpark(containerId, series, key, minY, maxY){
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  const w = el.clientWidth || 160, h = el.clientHeight || 46, p = 2;
+  const xs = series.map((_,i)=> i/(Math.max(series.length-1,1)));
+  const ys = series.map(r=>{
+    const v = r[key]; 
+    if (v==null) return null;
+    const y = (v - minY) / (maxY - minY || 1);
+    return 1 - Math.max(0, Math.min(1, y));
+  });
+  const pts = xs.map((x,i)=> ys[i]==null? null : `${p + x*(w-2*p)},${p + ys[i]*(h-20)}`).filter(Boolean);
+
+  const start = new Date(series[0].timestamp || series[0].time || Date.now());
+  const end   = new Date(series[series.length-1].timestamp || series[series.length-1].time || Date.now());
+  const tickCount = 4;
+  const tickTexts = [];
+
+  for(let i=0;i<=tickCount;i++){
+    const frac = i/tickCount;
+    const t = new Date(start.getTime() + frac * (end - start));
+    const label = t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    tickTexts.push(`<text x="${p + frac*(w-2*p)}" y="${h-4}" font-size="7" fill="gray" text-anchor="middle">${label}</text>`);
+  }
+
+  el.innerHTML = `
+  <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${pts.join(' ')}" fill="none" stroke="currentColor" stroke-width="2" opacity="0.9"/>
+    ${tickTexts.join('')}
+  </svg>`;
+}
+
 async function updateSparks(shipId, tankId){
   try{
     const data = await fetchTankSeries(shipId, tankId, 60); // last 60 min
@@ -904,9 +952,11 @@ async function updateSparks(shipId, tankId){
     const [o2min,o2max]   = mm(vals('O2'), 16, 21);
     const [comin,comax]   = mm(vals('CO'), 0, 120);
     const [lelmin,lelmax] = mm(vals('LEL'), 0, 20);
+    const [h2smin,h2smax] = mm(vals('H2S'), 0, 20);
     drawSpark('sparkO2',  data, 'O2',  o2min, o2max);
     drawSpark('sparkCO',  data, 'CO',  comin, comax);
     drawSpark('sparkLEL', data, 'LEL', lelmin, lelmax);
+    drawSpark('sparkH2S', data, 'H2S', h2smin, h2smax);
   }catch(e){
     // ignore spark failures to keep UI responsive
   }

@@ -16,12 +16,13 @@ TANK_ID = 1                # set to an existing tank's integer id for that ship
 SENSORS = ["SN-G-001", "CO-L-23B", "S3"]
 
 PUBLISH_TOPIC = f"ship/{SHIP_ID}/sensors"
-INTERVAL_SEC  = 3
+INTERVAL_SEC  = 10
 
 # Starting baselines (per sensor) and step magnitudes
 O2_BASE,  O2_STEP  = 20.9, 0.20    # O2 around 20–21%, small drift
 CO_BASE,  CO_STEP  = 8.0,  4.0     # CO around single digits, drift a few ppm
 LEL_BASE, LEL_STEP = 2.0,  0.7     # LEL a few %, drift a bit
+H2S_BASE, H2S_STEP = 2.0,  0.7     # LEL a few %, drift a bit
 
 # 10% chance per tick to spike CO to a dangerous level for one random sensor
 DANGER_PROB     = 0.10
@@ -41,6 +42,7 @@ _state = {
         "O2":  O2_BASE + random.uniform(-0.2, 0.2),
         "CO":  CO_BASE + random.uniform(-2, 2),
         "LEL": LEL_BASE + random.uniform(-0.5, 0.5),
+        "H2S": H2S_BASE + random.uniform(-0.5, 0.5),
     }
     for sid in SENSORS
 }
@@ -55,13 +57,15 @@ def _tick_sensor(prev):
     o2  = prev["O2"]  + (random.random() - 0.5) * O2_STEP
     co  = prev["CO"]  + (random.random() - 0.5) * CO_STEP
     lel = prev["LEL"] + (random.random() - 0.5) * LEL_STEP
+    h2s = prev["H2S"] + (random.random() - 0.5) * H2S_STEP
 
     # clamp to sane ranges
     o2  = _clamp(o2, 14.0, 21.0)   # never above 21, never below 14
     co  = _clamp(co, 0.0, 200.0)
     lel = _clamp(lel, 0.0, 100.0)
+    h2s = _clamp(h2s, 0.0, 100.0)
 
-    return {"O2": o2, "CO": co, "LEL": lel}
+    return {"O2": o2, "CO": co, "LEL": lel, "H2S": h2s}
 
 def publish_sensor_data():
     tick = 0
@@ -87,8 +91,9 @@ def publish_sensor_data():
             o2  = round(_state[sid]["O2"],  2)
             co  = round(_state[sid]["CO"],  2)
             lel = round(_state[sid]["LEL"], 2)
+            h2s = round(_state[sid]["H2S"], 2)
 
-            readings.append({"sensor_id": sid, "O2": o2, "CO": co, "LEL": lel})
+            readings.append({"sensor_id": sid, "O2": o2, "CO": co, "LEL": lel, "H2S": h2s})
 
             # after publishing a spike, let CO relax a bit next tick
             if _state[sid]["CO"] > 100:
