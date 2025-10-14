@@ -55,6 +55,8 @@ function renderOverviewPage(ships){
   $('#shipsUnderOp').textContent = ships.filter(s=>s.status==='WIP').length;
   $('#totalPersonnel').textContent = ships.reduce((a,s)=>a+s.personnel,0);
   $('#spacesDanger').textContent = ships.filter(s=>s.status==='Danger').length;
+  $('#spacesWarn').textContent = SHIPS_CACHE.filter(s => s.status === 'Warning').length;  // New line for Warning count
+
 
   const row = $('#shipsRow');
   row.innerHTML = '';
@@ -120,7 +122,7 @@ function setupOverviewEventListeners(){
     e.preventDefault();
     const shipId = $('#newShipName').value.toUpperCase().replace(/\s/g, '');
     const newShipData = {
-      id: shipId,
+      // id: shipId,
       name: $('#newShipName').value,
       lastPort: $('#newShipPort').value,
       personnel: parseInt($('#newShipPersonnel').value, 10),
@@ -241,7 +243,24 @@ async function initShipPage() {
   $('#shipTitle').textContent = `Ship: ${currentShip.name}`;
   $('#totPersonnel').textContent = currentShip.personnel;
   renderTankNav(currentShip);
+  renderShipKPIs(currentShip);
+  // poll every 2s for fresh values
+  window.__shipPoll && clearInterval(window.__shipPoll);
+  window.__shipPoll = setInterval(async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/ships`);
+      const ships = await res.json();
+      const updated = ships.find(s => s.id === currentShip.id);
+      if (updated) renderShipKPIs(updated);
+    } catch (e) {
+      console.warn('Ship poll failed', e);
+    }
+  }, 2000);
 
+// (optional) clean up if you add page navigation SPA-style:
+window.addEventListener('beforeunload', () => {
+  window.__shipPoll && clearInterval(window.__shipPoll);
+});
   setupShipPageEventListeners(currentShip);
   
   if (currentShip.tanks.length > 0) {
@@ -260,11 +279,24 @@ function renderTankNav(ship) {
     b.className = 'tankbtn';
     b.dataset.tankId = tank.id;
     b.innerHTML = `
-      <span>${tank.id} (${tank.sensors.length} sensors)</span>
+      <span>${tank.ship_specific_id} (${tank.sensors.length} sensors)</span>
       <button class="btn-delete small-btn" title="Delete Tank (Not Implemented)">X</button>
     `;
     nav.appendChild(b);
   });
+}
+
+function renderShipKPIs(ship){
+  const fmt = v => (v === null || v === undefined) ? '—' : v;
+  const o2 = fmt(ship.live_o2);
+  const co = fmt(ship.live_co);
+  const lel = fmt(ship.live_lel);
+  const elO2 = document.getElementById('kpiO2');
+  const elCO = document.getElementById('kpiCO');
+  const elLEL = document.getElementById('kpiLEL');
+  if (elO2) elO2.textContent = o2;
+  if (elCO) elCO.textContent = co;
+  if (elLEL) elLEL.textContent = lel;
 }
 
 function selectTank(ship, tankId) {
@@ -324,19 +356,37 @@ function setupShipPageEventListeners(currentShip) {
   $('#cancelAddTank').onclick = () => addTankModal.classList.add('hidden');
   $('#addTankForm').onsubmit = async (e) => {
     e.preventDefault();
-    const tankData = { id: $('#newTankName').value, type_id: $('#newTankType').value };
+    
+    const tankTypeSelect = $('#newTankType');
+    const selectedTypeId = tankTypeSelect.value;
+    let customName = $('#newTankName').value.trim();
+
+    // If the user leaves the custom name blank, use the standard type's name as a default.
+    if (!customName) {
+        customName = tankTypeSelect.options[tankTypeSelect.selectedIndex].text;
+    }
+
+    const tankData = {
+      ship_specific_id: customName,
+      type_id: selectedTypeId
+    };
+    
     try {
       const response = await fetch(`${API_BASE_URL}/api/ships/${currentShip.id}/tanks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tankData),
       });
-      if (!response.ok) { const err = await response.json(); throw new Error(err.detail); }
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail);
+      }
       addTankModal.classList.add('hidden');
-      await initShipPage();
-    } catch (error) { alert(`Error adding tank: ${error.message}`); }
-  };
-
+      await initShipPage(); // Re-initialize the whole page to show changes
+    } catch (error) {
+      alert(`Error adding tank: ${error.message}`);
+    }
+};
   const assignSensorModal = $('#assignSensorModal');
   $('#sensorsWrap').addEventListener('click', e => {
     if (e.target.id === 'assignSensorBtn') {
@@ -391,6 +441,25 @@ function pushLog(line){
   box.prepend(row);
 }
 
+function setKPIState(id, value, warn, danger, isLow=false) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const kpi = el.closest('.kpi');
+  if (!kpi) return;
+  kpi.classList.remove('ok','warn','danger');
+  let state = 'ok';
+  if ((isLow && value <= danger) || (!isLow && value >= danger)) state = 'danger';
+  else if ((isLow && value <= warn) || (!isLow && value >= warn)) state = 'warn';
+  kpi.classList.add(state);
+}
+// use same defaults as backend for now
+const T = { warn_o2_low:19.5, danger_o2_low:18, warn_co_high:35, danger_co_high:100, warn_lel_high:5, danger_lel_high:10 };
+// whenever you refresh KPIs:
+setKPIState('kpiO2', currentShip.live_o2 ?? 21, T.warn_o2_low, T.danger_o2_low, true);
+setKPIState('kpiCO', currentShip.live_co ?? 0,  T.warn_co_high, T.danger_co_high, false);
+setKPIState('kpiLEL',currentShip.live_lel?? 0,  T.warn_lel_high, T.danger_lel_high,false);
+
+
 /* ========== Page 3 (Sensor Inventory) ========== */
 async function initInventoryPage() {
   await fetchMasterData();
@@ -438,6 +507,22 @@ async function showSensorDetails(sensorId) {
       <div><strong>Status:</strong> ${sensor.status}</div>
       <div><strong>Battery:</strong> ${sensor.battery}%</div>
     `;
+    // AFTER you've set #modalTitle and #modalSensorInfo, add this:
+    const actions = document.querySelector('#logModal .modal-actions');
+
+    // avoid duplicates if user opens multiple sensors
+    actions.querySelector('#downloadLogsBtn')?.remove();
+
+    // create the download button
+    const dl = document.createElement('a');
+    dl.id = 'downloadLogsBtn';
+    dl.href = `${API_BASE_URL}/api/master/sensors/${sensor.id}/logs.csv`;
+    dl.className = 'btn';
+    dl.textContent = 'Download CSV';
+    dl.setAttribute('download', `${sensor.id}_logs.csv`);
+
+    // put it at the start of the actions row (before "Close")
+    actions.insertBefore(dl, actions.firstChild);
 
     const logContainer = $('#logEntries');
     logContainer.innerHTML = '';

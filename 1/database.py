@@ -4,7 +4,6 @@ from models import Ship, Tank, MasterSensor, MasterTankType, AssignedSensor, Sen
 import datetime
 
 # --- MASTER TANK TYPE INVENTORY ---
-# The single source of truth for standard tank classifications.
 MASTER_TANK_TYPES_DB = {
     "CARGO_LIQUID": MasterTankType(id="CARGO_LIQUID", name="Cargo Hold - Liquid Bulk", required_permits=["Confined Space Entry"]),
     "BALLAST": MasterTankType(id="BALLAST", name="Ballast Tank"),
@@ -13,7 +12,6 @@ MASTER_TANK_TYPES_DB = {
 }
 
 # --- MASTER SENSOR INVENTORY ("The Warehouse") ---
-# The single source of truth for every sensor device.
 MASTER_SENSORS_DB = {
     "SN-G-001": MasterSensor(id="SN-G-001", type="Multi-gas", battery=98, logs=[
         SensorLogEntry(event="Commissioned", details="Device added to inventory."),
@@ -26,7 +24,8 @@ MASTER_SENSORS_DB = {
     "SN-G-003": MasterSensor(id="SN-G-003", type="Multi-gas", status="Maintenance", battery=55, logs=[
         SensorLogEntry(event="Maintenance", details="Device sent for battery replacement."),
     ]),
-    # ... (other sensors)
+    "CO-L-23B": MasterSensor(id="CO-L-23B", type="CO", battery=100),
+    "O2-A-119": MasterSensor(id="O2-A-119", type="O2", battery=89, last_calibrated=datetime.date(2025, 8, 1)),
 }
 
 
