@@ -20,6 +20,28 @@ function markInteracting() {
   window.addEventListener(evt, markInteracting, {passive:true});
 });
 
+/* ========== Toasts ========== */
+let __toastBox = null;
+function ensureToastBox(){
+  if (!__toastBox){
+    __toastBox = document.createElement('div');
+    __toastBox.id = 'toastBox';
+    document.body.appendChild(__toastBox);
+  }
+}
+function showToast(msg){
+  ensureToastBox();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  __toastBox.appendChild(t);
+  setTimeout(()=>{ t.classList.add('show'); }, 10);
+  setTimeout(()=>{
+    t.classList.remove('show');
+    t.addEventListener('transitionend', ()=> t.remove(), {once:true});
+  }, 2200);
+}
+
 /* ========== API & Data Handling ========== */
 const API_BASE_URL = 'http://127.0.0.1:8000';
 let SHIPS_CACHE = [];
@@ -54,7 +76,7 @@ function startRealtimeUpdates() {
         $('#shipsUnderOp').textContent = SHIPS_CACHE.filter(s=>s.status==='WIP').length;
         $('#totalPersonnel').textContent = SHIPS_CACHE.reduce((a,s)=>a+s.personnel,0);
         $('#spacesDanger').textContent = SHIPS_CACHE.filter(s=>s.status==='Danger').length;
-        $('#spacesWarn').textContent   = SHIPS_CACHE.filter(s=>s.status==='Warning').length;
+        $('#spacesWarn').textContent   = SHIPS_CACHE.filter(s=>s.status === 'Warning').length;
       } else {
         renderOverviewPage(SHIPS_CACHE);
       }
@@ -159,6 +181,13 @@ function setupOverviewEventListeners(){
       renderOverviewPage(SHIPS_CACHE);
       addModal.classList.add('hidden');
       e.target.reset();
+      showToast('Ship added');
+      // optional audit
+      fetch(`${API_BASE_URL}/api/logs`, {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({event:'add_ship', details:`[ship ${newShipData.name}] created from UI`})
+      }).catch(()=>{});
     } catch (error) {
       console.error("Error creating ship:", error);
       alert("Error: Could not create ship. Check if the ID is unique.");
@@ -188,6 +217,12 @@ function setupOverviewEventListeners(){
       await fetchMasterData();
       renderOverviewPage(SHIPS_CACHE);
       editModal.classList.add('hidden');
+      showToast('Ship updated');
+      fetch(`${API_BASE_URL}/api/logs`, {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({event:'edit_ship', details:`[ship ${shipId}] details updated`})
+      }).catch(()=>{});
     } catch (error) {
       console.error("Error updating ship:", error);
     }
@@ -207,6 +242,12 @@ function setupOverviewEventListeners(){
           if (!response.ok) throw new Error('Failed to delete ship.');
           await fetchMasterData();
           renderOverviewPage(SHIPS_CACHE);
+          showToast('Ship deleted');
+          fetch(`${API_BASE_URL}/api/logs`, {
+            method:'POST',
+            headers:{'Content-Type':'application/x-www-form-urlencoded'},
+            body:new URLSearchParams({event:'delete_ship', details:`[ship ${shipId}] deleted`})
+          }).catch(()=>{});
         } catch (error) {
           console.error("Error deleting ship:", error);
         }
@@ -233,6 +274,12 @@ function setupOverviewEventListeners(){
         if (!response.ok) throw new Error('Failed to update status');
         await fetchMasterData();
         renderOverviewPage(SHIPS_CACHE);
+        showToast(`Status → ${newStatus}`);
+        fetch(`${API_BASE_URL}/api/logs`, {
+          method:'POST',
+          headers:{'Content-Type':'application/x-www-form-urlencoded'},
+          body:new URLSearchParams({event:'status_change', details:`[ship ${shipId}] status set to ${newStatus}`})
+        }).catch(()=>{});
       } catch (error) {
         console.error("Error updating ship status:", error);
       }
@@ -417,6 +464,8 @@ async function initShipPage() {
     currentTankId = currentShip.tanks[0].id;
     selectTank(currentShip, currentTankId);
     await onTankSelected(currentShip.id, currentTankId);
+    // initial sparks
+    updateSparks(currentShip.id, currentTankId);
   } else {
     $('#tankTitle').textContent = "No tanks configured for this ship.";
     $('#sensorsWrap').innerHTML = '<p>Please add a tank to begin assigning sensors.</p>';
@@ -442,6 +491,8 @@ async function initShipPage() {
           } catch(e) { /* keep last visuals if live fails */ }
         }
         renderShipKPIsWithThresholds(currentShip);
+        // refresh sparks occasionally
+        if (currentTankId != null) { updateSparks(currentShip.id, currentTankId); }
       }
     } catch (e) {
       console.warn('Ship poll failed', e);
@@ -495,7 +546,7 @@ function selectTank(ship, tankId) {
   pushLog(`📦 Selected tank: ${selectedTank.id}`);
 }
 
-/* ======== Sensor assignment & modals (unchanged) ======== */
+/* ======== Sensor assignment & modals ======== */
 function renderSensorsForTank(tank) {
   // (kept for compatibility if needed elsewhere)
   const wrap = $('#sensorsWrap');
@@ -561,6 +612,12 @@ function setupShipPageEventListeners(shipCtx) {
       }
       addTankModal.classList.add('hidden');
       await initShipPage(); // refresh page data
+      showToast('Tank added');
+      fetch(`${API_BASE_URL}/api/logs`, {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({event:'add_tank', details:`[ship ${shipCtx.id}] tank '${customName}' added`})
+      }).catch(()=>{});
     } catch (error) {
       alert(`Error adding tank: ${error.message}`);
     }
@@ -590,6 +647,12 @@ function setupShipPageEventListeners(shipCtx) {
       if (!response.ok) { const err = await response.json(); throw new Error(err.detail); }
       assignSensorModal.classList.add('hidden');
       await initShipPage();
+      showToast('Sensors assigned');
+      fetch(`${API_BASE_URL}/api/logs`, {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({event:'assign_sensors', details:`[ship ${shipCtx.id} tank ${tankId}] assigned ${sensorIds.join(',')}`})
+      }).catch(()=>{});
     } catch (error) { alert(`Error assigning sensors: ${error.message}`); }
   });
 
@@ -600,6 +663,7 @@ function setupShipPageEventListeners(shipCtx) {
       selectTank(currentShip, newId);
       currentTankId = newId;
       await onTankSelected(currentShip.id, currentTankId);
+      updateSparks(currentShip.id, currentTankId);
     }
   });
 
@@ -609,6 +673,12 @@ function setupShipPageEventListeners(shipCtx) {
       try {
         await fetch(`${API_BASE_URL}/api/ships/${currentShip.id}/acknowledge`, { method: 'PUT' });
         alert(`Alarm for ${currentShip.name} acknowledged.`);
+        showToast('Alarm acknowledged');
+        fetch(`${API_BASE_URL}/api/logs`, {
+          method:'POST',
+          headers:{'Content-Type':'application/x-www-form-urlencoded'},
+          body:new URLSearchParams({event:'acknowledge', details:`[ship ${currentShip.id}] user acknowledged alarm`})
+        }).catch(()=>{});
         window.location.href = 'index.html';
       } catch (error) { console.error("Error acknowledging alarm:", error); }
     }
@@ -803,7 +873,86 @@ window.onclick = function(event) {
   }
 };
 
-/* ========== Bootstrap by page ========== */
+/* ========== Sparklines (ship KPIs) ========== */
+async function fetchTankSeries(shipId, tankId, minutes=60){
+  const url = `${API_BASE_URL}/api/ships/${shipId}/tanks/${tankId}/readings?minutes=${minutes}`;
+  const res = await fetch(url);
+  return await res.json();
+}
+function drawSpark(containerId, series, key, minY, maxY){
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const w = el.clientWidth || 120, h = el.clientHeight || 26, p=2;
+  const xs = series.map((_,i)=> i/(Math.max(series.length-1,1)));
+  const ys = series.map(r=>{
+    const v = r[key]; 
+    if (v==null) return null;
+    const y = (v - minY) / (maxY - minY || 1);
+    return 1 - Math.max(0, Math.min(1, y));
+  });
+  const pts = xs.map((x,i)=> ys[i]==null? null : `${p + x*(w-2*p)},${p + ys[i]*(h-2*p)}`).filter(Boolean);
+  el.innerHTML = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${pts.join(' ')}" fill="none" stroke="currentColor" stroke-width="2" opacity="0.9"/>
+  </svg>`;
+}
+async function updateSparks(shipId, tankId){
+  try{
+    const data = await fetchTankSeries(shipId, tankId, 60); // last 60 min
+    if (!data.length) return;
+    const vals = k => data.map(d => d[k]).filter(v => v!=null);
+    const mm  = (arr,lo,hi)=>[Math.min(...arr, lo), Math.max(...arr, hi)];
+    const [o2min,o2max]   = mm(vals('O2'), 16, 21);
+    const [comin,comax]   = mm(vals('CO'), 0, 120);
+    const [lelmin,lelmax] = mm(vals('LEL'), 0, 20);
+    drawSpark('sparkO2',  data, 'O2',  o2min, o2max);
+    drawSpark('sparkCO',  data, 'CO',  comin, comax);
+    drawSpark('sparkLEL', data, 'LEL', lelmin, lelmax);
+  }catch(e){
+    // ignore spark failures to keep UI responsive
+  }
+}
+
+/* ========== Timeline Page ========== */
+async function initTimelinePage(){
+  const body = document.getElementById('timelineBody');
+  const ship = document.getElementById('fltShip');
+  const tank = document.getElementById('fltTank');
+  const sev  = document.getElementById('fltSeverity');
+  const since= document.getElementById('fltSince');
+
+  async function load(){
+    body.innerHTML = `<tr><td colspan="6">Loading…</td></tr>`;
+    const params = new URLSearchParams();
+    if (ship.value) params.set('ship_id', ship.value.trim());
+    if (tank.value) params.set('tank_id', tank.value.trim());
+    if (sev.value)  params.set('severity', sev.value);
+    if (since.value)params.set('minutes', since.value);
+    const res = await fetch(`${API_BASE_URL}/api/logs?`+params.toString());
+    const rows = await res.json();
+    if (!rows.length){ body.innerHTML = `<tr><td colspan="6">No events found.</td></tr>`; return; }
+    body.innerHTML = rows.map(r=>`
+      <tr>
+        <td>${new Date(r.timestamp).toLocaleString()}</td>
+        <td>${r.ship_id ?? '—'}</td>
+        <td>${r.tank_id ?? '—'}</td>
+        <td>${r.severity ?? '—'}</td>
+        <td>${r.event}</td>
+        <td>${r.details || ''}</td>
+      </tr>`).join('');
+  }
+
+  document.getElementById('btnRefreshTL').onclick = load;
+  document.getElementById('btnExportTL').onclick = async ()=>{
+    const rows = [...document.querySelectorAll('#timelineBody tr')].map(tr=>[...tr.children].map(td=> `"${td.textContent.replace(/"/g,'""')}"`).join(','));
+    const csv = ["Time,Ship,Tank,Severity,Event,Details", ...rows].join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'timeline.csv'; a.click();
+  };
+
+  load();
+}
+
+/* ========== Bootstrap by page + Keyboard Shortcuts ========== */
 document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('shipsList')) {
     // overview
@@ -811,9 +960,31 @@ document.addEventListener('DOMContentLoaded', () => {
     initOverview();
   } else if (document.getElementById('tankNav')) {
     // ship page
+    initClock('nowTime');
     initShipPage();
   } else if (document.getElementById('sensorTableBody')) {
     // inventory
+    initClock('nowTime');
     initInventoryPage();
+  } else if (document.getElementById('timelineBody')) {
+    // timeline
+    initClock('nowTime');
+    initTimelinePage();
   }
+
+  // Keyboard shortcuts (not inside inputs/textareas)
+  document.addEventListener('keydown', (e)=>{
+    if (e.target.matches('input, textarea')) return;
+    const onOverview = !!document.getElementById('shipsList');
+    const onShip = !!document.getElementById('tankNav');
+    if (onOverview){
+      if (e.key.toLowerCase()==='n') document.getElementById('addShipBtn')?.click();
+      if (e.key.toLowerCase()==='g') location.href = 'inventory.html';
+      if (e.key.toLowerCase()==='t') location.href = 'timeline.html';
+    }
+    if (onShip){
+      if (e.key.toLowerCase()==='t') document.getElementById('addTankBtn')?.click();
+      if (e.key.toLowerCase()==='a') document.getElementById('assignSensorBtn')?.click();
+    }
+  });
 });

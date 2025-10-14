@@ -452,3 +452,26 @@ body.emergency-active {
 .thr-chip.o2   { background: rgba(59,130,246,.10); color: #1d4ed8; }    /* blue-ish */
 .thr-chip.co   { background: rgba(234,88,12,.10); color: #9a3412; }     /* amber/orange */
 .thr-chip.lel  { background: rgba(16,185,129,.12); color: #065f46; }    /* teal/green */
+
+/* Toasts */
+#toastBox{
+  position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 1000;
+}
+.toast{
+  background: #111b27; border: 1px solid #2f81f7; color: #e5efff;
+  padding: 10px 12px; border-radius: 10px; transform: translateY(10px); opacity: 0;
+  transition: .25s ease; box-shadow: 0 6px 16px rgba(0,0,0,.35);
+}
+.toast.show{ transform: translateY(0); opacity: 1; }
+
+/* Filters row on timeline */
+.filters-row{
+  display: grid; grid-template-columns: repeat(6, minmax(0, 170px)); gap: 10px; margin-bottom: 12px;
+}
+.input{
+  background:#0c1723;border:1px solid #17314a;color:#fff;padding:8px;border-radius:8px;
+}
+@media (max-width: 900px){
+  .filters-row{ grid-template-columns: 1fr 1fr; }
+}
+

@@ -1,7 +1,7 @@
 # main.py
 
 import datetime
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 import models, database
@@ -9,7 +9,8 @@ import json
 import threading
 import paho.mqtt.client as mqtt
 import os, io, csv
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
+
 
 # --- In-memory live cache for quick UI reads (survives process lifetime) ---
 # LIVE_CACHE[(ship_id, tank_id)] = {
@@ -285,6 +286,80 @@ def acknowledge_alarm(ship_id: str, db: Session = Depends(get_db)):
     ship.status = ship.previousStatus or "Idle"
     db.commit(); db.refresh(ship)
     return ship
+
+# === Event timeline & readings API ===
+
+
+@app.get("/api/logs", tags=["Logs"])
+def get_logs(ship_id: str | None = None,
+             severity: str | None = None,
+             tank_id: int | None = None,
+             minutes: int = Query(60, ge=1, le=10080),
+             db: Session = Depends(get_db)):
+    """
+    Returns recent event logs (Safety/User/Config). For demo we reuse SensorLogEntry.
+    We'll interpret event names: Danger/Warning/OK/Clear plus any UI action events.
+    """
+    cutoff = datetime.datetime.now() - datetime.timedelta(minutes=minutes)
+    q = db.query(models.SensorLogEntry).filter(models.SensorLogEntry.timestamp >= cutoff)
+    # ship_id/tank_id embedded in details if coming from MQTT or UI; filter best-effort
+    # Example details format recommendation: "[ship MTGREATMANTA tank 1] ... "
+    rows = q.order_by(models.SensorLogEntry.timestamp.desc()).all()
+    payload = []
+    for r in rows:
+        sev = None
+        if r.event in ("Danger", "Warning", "OK", "Clear"):
+            sev = "Danger" if r.event == "Danger" else ("Warning" if r.event == "Warning" else "OK")
+        # quick text parsing (non-fatal if not present)
+        s_id, t_id = None, None
+        txt = r.details or ""
+        # crude parse like: "[tank 3]" or "[ship MT.. tank 2]"
+        try:
+            if "ship " in txt:
+                s_id = txt.split("ship ")[1].split(" ")[0].strip("[]:,")
+            if "tank " in txt:
+                t_id = int(txt.split("tank ")[1].split("]")[0].split()[0].strip("[]:,"))
+        except Exception:
+            pass
+        if ship_id and s_id and s_id != ship_id: 
+            continue
+        if tank_id is not None and t_id is not None and t_id != tank_id:
+            continue
+        if severity and sev and sev != severity:
+            continue
+        payload.append({
+            "timestamp": r.timestamp.isoformat(),
+            "ship_id": s_id,
+            "tank_id": t_id,
+            "severity": sev,
+            "event": r.event,
+            "details": r.details
+        })
+    return payload
+
+@app.post("/api/logs", tags=["Logs"])
+def post_log(event: str, details: str = "", db: Session = Depends(get_db)):
+    """
+    Allows UI to append user/audit events into the same log sink.
+    """
+    any_sensor = db.query(models.MasterSensor).first()
+    if not any_sensor:
+        raise HTTPException(400, "No sensor sink available to attach log")
+    entry = models.SensorLogEntry(owner_sensor=any_sensor, event=event, details=details)
+    db.add(entry); db.commit()
+    return {"ok": True}
+
+@app.get("/api/ships/{ship_id}/tanks/{tank_id}/readings", tags=["Readings"])
+def get_readings(ship_id: str, tank_id: int, minutes: int = Query(60, ge=1, le=1440), db: Session = Depends(get_db)):
+    cutoff = datetime.datetime.now() - datetime.timedelta(minutes=minutes)
+    rows = (db.query(models.ReadingArchive)
+              .filter(models.ReadingArchive.ship_id==ship_id,
+                      models.ReadingArchive.tank_id==tank_id,
+                      models.ReadingArchive.timestamp >= cutoff)
+              .order_by(models.ReadingArchive.timestamp.asc())
+              .all())
+    return [{"ts": r.timestamp.isoformat(), "O2": r.o2, "CO": r.co, "LEL": r.lel} for r in rows]
+
 
 # ===================================================================
 # ========== MQTT INTEGRATION SECTION ============
