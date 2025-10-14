@@ -8,7 +8,6 @@ function initClock(id){
   tick(); setInterval(tick, 1000);
 }
 
-/* Interaction guard to avoid heavy re-render while user is clicking/typing */
 let __interacting = false;
 let __interactionTimer = null;
 function markInteracting() {
@@ -49,7 +48,7 @@ function startRealtimeUpdates() {
     await fetchMasterData();
     if (document.getElementById('shipsList')) {
       if (__interacting) {
-        // gentle mode: only update counters
+        // only update counters, don’t rebuild lists/cards
         $('#shipsAtDock').textContent = SHIPS_CACHE.length.toString();
         $('#shipsUnderOp').textContent = SHIPS_CACHE.filter(s=>s.status==='WIP').length;
         $('#totalPersonnel').textContent = SHIPS_CACHE.reduce((a,s)=>a+s.personnel,0);
@@ -61,6 +60,7 @@ function startRealtimeUpdates() {
     }
   }, 3000);
 }
+
 
 /* ========== Page 1 (Overview) ========== */
 function initOverview(){
@@ -248,23 +248,14 @@ function badgeFor(s){
 }
 
 /* ========== Page 2 (Ship details) ========== */
-let currentShip = null;        // GLOBAL
-let currentTankId = null;      // GLOBAL
-let CURRENT_THRESHOLDS = null; // GLOBAL thresholds for current tank
+let currentShip = null;     // the ship object for this page (GLOBAL)
+let currentTankId = null;   // the active tank id (GLOBAL)
+let CURRENT_THRESHOLDS = null; // current tank thresholds
 
-/* ---- thresholds helpers ---- */
+// thresholds helpers
 async function fetchTankThresholds(shipId, tankId) {
   const res = await fetch(`${API_BASE_URL}/api/ships/${shipId}/tanks/${tankId}/thresholds`);
   if (!res.ok) throw new Error(`threshold fetch failed ${res.status}`);
-  return await res.json();
-}
-
-/* ---- LIVE tank snapshot (multi-sensor) ----
-   { updated_at, sensors: {S1:{O2,CO,LEL}, ...},
-     aggregates: { display:{O2,CO,LEL}, worst:{O2,CO,LEL} } } */
-async function fetchTankLive(shipId, tankId) {
-  const res = await fetch(`${API_BASE_URL}/api/ships/${shipId}/tanks/${tankId}/live`);
-  if (!res.ok) throw new Error('live fetch failed');
   return await res.json();
 }
 
@@ -292,6 +283,7 @@ function showThresholdsText(T) {
   `;
 }
 
+
 function setKPIState(id, value, warn, danger, isLow=false) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -306,12 +298,14 @@ function setKPIState(id, value, warn, danger, isLow=false) {
   kpi.classList.add(state);
 }
 
-/* Write KPI numbers and apply CURRENT_THRESHOLDS (or defaults) */
 function renderShipKPIsWithThresholds(ship) {
   const fmt = v => (v === null || v === undefined) ? '—' : v;
-  $('#kpiO2')  && ($('#kpiO2').textContent  = fmt(ship.live_o2));
-  $('#kpiCO')  && ($('#kpiCO').textContent  = fmt(ship.live_co));
-  $('#kpiLEL') && ($('#kpiLEL').textContent = fmt(ship.live_lel));
+  const elO2  = document.getElementById('kpiO2');
+  const elCO  = document.getElementById('kpiCO');
+  const elLEL = document.getElementById('kpiLEL');
+  if (elO2)  elO2.textContent  = fmt(ship.live_o2);
+  if (elCO)  elCO.textContent  = fmt(ship.live_co);
+  if (elLEL) elLEL.textContent = fmt(ship.live_lel);
 
   const T = CURRENT_THRESHOLDS || {
     warn_o2_low:19.5, danger_o2_low:18,
@@ -323,49 +317,6 @@ function renderShipKPIsWithThresholds(ship) {
   setKPIState('kpiLEL', ship.live_lel, T.warn_lel_high,T.danger_lel_high,false);
 }
 
-/* Render live sensor tiles for the selected tank */
-function renderTankSensorsLiveMapToTiles(sensorsMap) {
-  const entries = Object.entries(sensorsMap || {}); // [[id,{O2,CO,LEL}], ...]
-  if (entries.length === 0) {
-    return '<p>No live sensors reporting for this tank.</p>';
-  }
-  return entries.map(([sid, vals]) => {
-    const o2  = (vals.O2  ?? '—');
-    const co  = (vals.CO  ?? '—');
-    const lel = (vals.LEL ?? '—');
-    return `
-      <div class="sensor">
-        <div class="sensor-top">
-          <div class="sensor-id">${sid}</div>
-        </div>
-        <div class="sensor-val">O₂: <strong>${o2}</strong>%</div>
-        <div class="sensor-val">CO: <strong>${co}</strong> ppm</div>
-        <div class="sensor-val">LEL: <strong>${lel}</strong>%</div>
-      </div>
-    `;
-  }).join('');
-}
-
-function renderTankSensorsLive(sensorsMap) {
-  const wrap = $('#sensorsWrap');
-  if (!wrap) return;
-  wrap.innerHTML = renderTankSensorsLiveMapToTiles(sensorsMap);
-
-  // Keep the Assign button at the end
-  const assignBtn = document.createElement('button');
-  assignBtn.type = 'button';
-  assignBtn.className = 'btn';
-  assignBtn.id = 'assignSensorBtn';
-  assignBtn.textContent = '+ Assign Sensors';
-  assignBtn.dataset.tankId = currentTankId;
-  wrap.appendChild(assignBtn);
-}
-
-/* On tank selection:
-   - fetch thresholds
-   - fetch live multi-sensor snapshot
-   - set ship KPIs to DISPLAY aggregate (max across sensors)
-   - render sensor tiles */
 async function onTankSelected(shipId, tankId) {
   try {
     CURRENT_THRESHOLDS = await fetchTankThresholds(shipId, tankId);
@@ -378,18 +329,6 @@ async function onTankSelected(shipId, tankId) {
     warn_co_high:35,  danger_co_high:100,
     warn_lel_high:5,  danger_lel_high:10
   });
-
-  try {
-    const live = await fetchTankLive(shipId, tankId);
-    renderTankSensorsLive(live.sensors);
-    // Use DISPLAY aggregate for KPIs (overview)
-    currentShip.live_o2  = live.aggregates?.display?.O2  ?? currentShip.live_o2;
-    currentShip.live_co  = live.aggregates?.display?.CO  ?? currentShip.live_co;
-    currentShip.live_lel = live.aggregates?.display?.LEL ?? currentShip.live_lel;
-  } catch (e) {
-    console.warn('Live tank fetch failed', e);
-  }
-
   renderShipKPIsWithThresholds(currentShip);
 }
 
@@ -398,7 +337,7 @@ async function initShipPage() {
 
   const p = new URLSearchParams(location.search);
   const shipId = p.get('ship');
-  currentShip = SHIPS_CACHE.find(s => s.id === shipId); // GLOBAL
+  currentShip = SHIPS_CACHE.find(s => s.id === shipId); // assign to GLOBAL
 
   if (!currentShip) {
     alert("Ship not found!");
@@ -412,7 +351,7 @@ async function initShipPage() {
   renderTankNav(currentShip);
   renderShipKPIsWithThresholds(currentShip);
 
-  // default tank + thresholds + live
+  // default tank + thresholds
   if (currentShip.tanks.length > 0) {
     currentTankId = currentShip.tanks[0].id;
     selectTank(currentShip, currentTankId);
@@ -422,7 +361,7 @@ async function initShipPage() {
     $('#sensorsWrap').innerHTML = '<p>Please add a tank to begin assigning sensors.</p>';
   }
 
-  // poll every 2s for fresh values + live sensors
+  // poll every 2s for fresh values
   window.__shipPoll && clearInterval(window.__shipPoll);
   window.__shipPoll = setInterval(async () => {
     try {
@@ -431,16 +370,6 @@ async function initShipPage() {
       const updated = ships.find(s => s.id === currentShip.id);
       if (updated) {
         currentShip = updated;
-        // refresh live sensors for current tank and sync KPIs to DISPLAY aggregate
-        if (currentTankId != null) {
-          try {
-            const live = await fetchTankLive(currentShip.id, currentTankId);
-            renderTankSensorsLive(live.sensors);
-            currentShip.live_o2  = live.aggregates?.display?.O2  ?? currentShip.live_o2;
-            currentShip.live_co  = live.aggregates?.display?.CO  ?? currentShip.live_co;
-            currentShip.live_lel = live.aggregates?.display?.LEL ?? currentShip.live_lel;
-          } catch(e) { /* keep last visuals if live fails */ }
-        }
         renderShipKPIsWithThresholds(currentShip);
       }
     } catch (e) {
@@ -474,12 +403,15 @@ function renderTankNav(ship) {
 function renderShipKPIs(ship){
   // kept for compatibility; not used on ship page anymore
   const fmt = v => (v === null || v === undefined) ? '—' : v;
+  const o2 = fmt(ship.live_o2);
+  const co = fmt(ship.live_co);
+  const lel = fmt(ship.live_lel);
   const elO2 = document.getElementById('kpiO2');
   const elCO = document.getElementById('kpiCO');
   const elLEL = document.getElementById('kpiLEL');
-  if (elO2) elO2.textContent = fmt(ship.live_o2);
-  if (elCO) elCO.textContent = fmt(ship.live_co);
-  if (elLEL) elLEL.textContent = fmt(ship.live_lel);
+  if (elO2) elO2.textContent = o2;
+  if (elCO) elCO.textContent = co;
+  if (elLEL) elLEL.textContent = lel;
 }
 
 function selectTank(ship, tankId) {
@@ -491,13 +423,11 @@ function selectTank(ship, tankId) {
   activeBtn && activeBtn.classList.add('active');
 
   $('#tankTitle') && ($('#tankTitle').textContent = `Details for Tank: ${selectedTank.ship_specific_id || selectedTank.id}`);
-  // Sensor tiles now come from LIVE endpoint in onTankSelected()
+  renderSensorsForTank(selectedTank);
   pushLog(`📦 Selected tank: ${selectedTank.id}`);
 }
 
-/* ======== Sensor assignment & modals (unchanged) ======== */
 function renderSensorsForTank(tank) {
-  // (kept for compatibility if needed elsewhere)
   const wrap = $('#sensorsWrap');
   if (!wrap) return;
   wrap.innerHTML = '';
@@ -802,18 +732,3 @@ window.onclick = function(event) {
     modal.style.display = "none";
   }
 };
-
-/* ========== Bootstrap by page ========== */
-document.addEventListener('DOMContentLoaded', () => {
-  if (document.getElementById('shipsList')) {
-    // overview
-    initClock('nowTime');
-    initOverview();
-  } else if (document.getElementById('tankNav')) {
-    // ship page
-    initShipPage();
-  } else if (document.getElementById('sensorTableBody')) {
-    // inventory
-    initInventoryPage();
-  }
-});
