@@ -114,14 +114,33 @@
           <div class="add-icon">+</div>
         </div>
       </div>
-
+      
       <h3 class="section-title">Active Ships</h3>
       <div id="shipsList" class="shipcards-row">
         </div>
+        <!-- Work Summary (dummy) -->
+<section class="summary-card" id="workSummaryCard">
+  <h3 class="section-title small">Work Summary (Today)</h3>
+  <div class="summary-table-wrap">
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Ship</th>
+          <th>Personnel</th>
+          <th>Working Hours</th>
+          <th>Threshold</th>
+        </tr>
+      </thead>
+      <tbody id="workSummaryBody"><!-- rows by JS --></tbody>
+    </table>
+  </div>
+  <div class="summary-note muted">* Values are dummy placeholders for layout testing.</div>
+</section>
+
+      
     </main>
   </div>
-
-  <div id="emModal" class="modal hidden">
+    <div id="emModal" class="modal hidden">
     <div class="modal-card">
       <h3>Confirm Emergency Alarm</h3>
       <p>This will notify all crews and trigger sirens. Proceed?</p>
@@ -131,6 +150,7 @@
       </div>
     </div>
   </div>
+
 
   <div id="addShipModal" class="modal hidden">
     <div class="modal-card">

@@ -302,8 +302,54 @@ function startRealtimeUpdates() {
 /* ========== Page 1 (Overview) ========== */
 function initOverview(){
   renderOverviewPage([]);
+  
   setupOverviewEventListeners();
   startRealtimeUpdates();
+}
+// Stable pseudo-random from string (so dummy hours don't change every render)
+function seedFromString(str){
+  let h = 2166136261 >>> 0; // FNV-1a base
+  for (let i=0;i<str.length;i++){
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+function seededInt(seed, min, max){
+  // xorshift32
+  let x = seed || 123456789;
+  x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
+  const u = ((x >>> 0) / 0xFFFFFFFF);
+  return Math.floor(min + u * (max - min + 1));
+}
+
+// Build rows for the Work Summary table
+function renderWorkSummaryTable(ships){
+  const tb = document.getElementById('workSummaryBody');
+  if (!tb) return;
+
+  if (!Array.isArray(ships) || ships.length === 0){
+    tb.innerHTML = `<tr><td colspan="4">No ships available.</td></tr>`;
+    return;
+  }
+
+  // fixed dummy threshold (hours)
+  const THRESH = 8;
+
+  tb.innerHTML = ships.map(s => {
+    const seed = seedFromString(String(s.id ?? s.name ?? 'ship'));
+    const hours = seededInt(seed, 3, 12); // dummy 3..12 h
+    const rowClass = hours > THRESH ? 'exceed' : '';
+    const personnel = (typeof s.personnel === 'number') ? s.personnel : '—';
+    const shipName  = s.name ?? s.id ?? '—';
+    return `
+      <tr class="${rowClass}">
+        <td>${shipName}</td>
+        <td>${personnel}</td>
+        <td>${hours} h</td>
+        <td>${THRESH} h</td>
+      </tr>`;
+  }).join('');
 }
 
 function renderOverviewPage(ships){
@@ -367,6 +413,8 @@ function renderOverviewPage(ships){
       list.appendChild(el);
     });
   }
+  renderWorkSummaryTable(ships);
+
 }
 
 function setupOverviewEventListeners(){
