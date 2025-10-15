@@ -1,0 +1,9 @@
+FROM nginx:alpine
+
+# Copy static site to nginx html root
+COPY index.html ship.html inventory.html timeline.html history.html styles.css app.js /usr/share/nginx/html/
+
+# Nginx config (proxy /api -> api:8000)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>History – Sensor Readings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="styles.css" rel="stylesheet" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <a href="index.html" class="brand-title link">⟵ Dashboard</a>
+      <span class="brand-divider">|</span>
+      <span class="brand-title">History</span>
+    </div>
+    <div class="userbox">
+      <span>Time: <strong id="nowTime">—</strong></span>
+      <button id="themeToggle" class="btn" title="Toggle theme">🌗 Theme</button>
+
+    </div>
+  </header>
+
+  <main class="inventory-layout">
+    <!-- Filters row (like timeline.html) -->
+    <div class="filters-row">
+      <input id="fltShip" class="input" type="number" placeholder="Ship ID (city_id)" />
+      <input id="fltTank" class="input" type="number" placeholder="Tank ID (box_id)" />
+      <select id="fltSince" class="input" title="Filter by recency">
+        <option value="60">Last 60 min</option>
+        <option value="240">Last 4 hours</option>
+        <option value="1440" selected>Last 24 hours</option>
+        <option value="10080">Last 7 days</option>
+        <option value="0">All time</option>
+      </select>
+      <button id="btnRefresh" class="btn">Refresh</button>
+      <button id="btnExport" class="btn">Export CSV</button>
+    </div>
+
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Ship ID</th>
+            <th>Tank ID</th>
+            <th>O₂</th>
+            <th>CO</th>
+            <th>LEL</th>
+            <th>H₂S</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="7">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    // ---- Config ----
+    const SOURCE_URL = 'https://api.neuronwise.in/nw-ui/sensor_readings';
+
+    // ---- State ----
+    let RAW_ROWS = [];     // raw array from the API
+    let VIEW_ROWS = [];    // filtered/converted rows shown on the table
+
+    // ---- Utils ----
+    const toLocal = (iso) => {
+      try { return new Date(iso).toLocaleString(); }
+      catch { return iso; }
+    };
+
+    // Map the external format to our internal schema:
+    // city_id -> ship_id, box_id -> tank_id, sensor1..4 -> O2,CO,LEL,H2S
+    function mapRow(r) {
+      return {
+        timestamp: r.timestamp,
+        ship_id: r.city_id,         // using numeric city_id directly as Ship ID
+        tank_id: r.box_id,          // using numeric box_id as Tank ID
+        O2:  r.sensor1 ?? null,
+        CO:  r.sensor2 ?? null,
+        LEL: r.sensor3 ?? null,
+        H2S: r.sensor4 ?? null,
+      };
+    }
+
+    // Client-side filter by ship, tank, and "since" (minutes)
+    function applyFilters() {
+      const shipFilter = document.getElementById('fltShip').value.trim();
+      const tankFilter = document.getElementById('fltTank').value.trim();
+      const sinceMin   = parseInt(document.getElementById('fltSince').value, 10) || 0;
+
+      const cutoff = sinceMin > 0 ? new Date(Date.now() - sinceMin*60*1000) : null;
+
+      VIEW_ROWS = RAW_ROWS
+        .map(mapRow)
+        .filter(row => {
+          if (shipFilter && String(row.ship_id) !== shipFilter) return false;
+          if (tankFilter && String(row.tank_id) !== tankFilter) return false;
+          if (cutoff && new Date(row.timestamp) < cutoff) return false;
+          return true;
+        })
+        // newest first
+        .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      renderTable(VIEW_ROWS);
+    }
+
+    function renderTable(rows){
+      const body = document.getElementById('historyBody');
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="7">No records found.</td></tr>`;
+        return;
+      }
+      body.innerHTML = rows.map(r => `
+        <tr>
+          <td>${toLocal(r.timestamp)}</td>
+          <td>${r.ship_id}</td>
+          <td>${r.tank_id}</td>
+          <td>${r.O2 ?? '—'}</td>
+          <td>${r.CO ?? '—'}</td>
+          <td>${r.LEL ?? '—'}</td>
+          <td>${r.H2S ?? '—'}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadData(){
+      const body = document.getElementById('historyBody');
+      body.innerHTML = `<tr><td colspan="7">Loading…</td></tr>`;
+      try {
+        const res = await fetch(SOURCE_URL, { method: 'GET' });
+        if (!res.ok) throw new Error('API error: ' + res.status);
+        const data = await res.json();
+
+        // Keep raw, then filter/render
+        RAW_ROWS = Array.isArray(data) ? data : [];
+        applyFilters();
+      } catch (err) {
+        console.error(err);
+        body.innerHTML = `<tr><td colspan="7">Failed to load data.</td></tr>`;
+      }
+    }
+
+    // Export current VIEW_ROWS to CSV
+    function exportCSV(){
+      const header = ["Time","Ship ID","Tank ID","O2","CO","LEL","H2S"];
+      const lines = VIEW_ROWS.map(r => ([
+        toLocal(r.timestamp),
+        r.ship_id, r.tank_id, r.O2 ?? "", r.CO ?? "", r.LEL ?? "", r.H2S ?? ""
+      ].map(x => `"${String(x).replace(/"/g,'""')}"`).join(',')));
+
+      const csv = [header.join(','), ...lines].join('\n');
+      const blob = new Blob([csv], {type:'text/csv'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'history.csv';
+      a.click();
+    }
+
+    // Wire up UI
+    document.getElementById('btnRefresh').onclick = () => applyFilters();
+    document.getElementById('fltShip').addEventListener('keydown', e => { if (e.key === 'Enter') applyFilters(); });
+    document.getElementById('fltTank').addEventListener('keydown', e => { if (e.key === 'Enter') applyFilters(); });
+    document.getElementById('fltSince').addEventListener('change', applyFilters);
+    document.getElementById('btnExport').onclick = exportCSV;
+
+    // Boot
+    initClock('nowTime');
+    loadData();
+
+    // Optional: auto-refresh every 60s
+    setInterval(loadData, 60000);
+  </script>
+</body>
+</html>

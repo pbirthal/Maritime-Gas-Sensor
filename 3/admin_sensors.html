@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Sensor Admin – Cochin Shipyard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="styles.css" rel="stylesheet" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <a href="index.html" class="brand-title link">⟵ Dashboard</a>
+      <span class="brand-divider">|</span>
+      <span class="brand-title">Sensor Admin</span>
+      <span class="brand-divider">|</span>
+      <a href="inventory.html" class="brand-title link">Inventory</a>
+      <a href="timeline.html" class="brand-title link">Reports</a>
+      <a href="history.html" class="brand-title link">History</a>
+    </div>
+    <div class="userbox">
+      <span>Time: <strong id="nowTime">—</strong></span>
+    </div>
+  </header>
+
+  <main class="inventory-layout">
+    <div class="filters-row">
+      <input id="q" class="input" placeholder="Search by ID / Type / Last Used Ship" />
+      <button id="btnNew" class="btn-confirm">+ New Sensor</button>
+      <div></div><div></div><div></div><div></div>
+    </div>
+
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Battery</th>
+            <th>Last Calibrated</th>
+            <th>Last Used on Ship</th>
+            <th style="width:220px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tblBody"><tr><td colspan="7">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Modal -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-card">
+      <h3 id="modalTitle">New Sensor</h3>
+      <form id="f" class="modal-form">
+        <label>Sensor ID</label>
+        <input id="f_id" required placeholder="e.g., SN-G-004" />
+        <label>Type</label>
+        <input id="f_type" required placeholder="e.g., Multi-gas / CO / O2" />
+        <label>Status</label>
+        <select id="f_status">
+          <option>Available</option>
+          <option>Maintenance</option>
+        </select>
+        <label>Battery (0–100)</label>
+        <input id="f_battery" type="number" min="0" max="100" value="100" />
+        <label>Last Calibrated</label>
+        <input id="f_cal" type="date" />
+        <label>Last Used on Ship</label>
+        <input id="f_ship" placeholder="(optional)" />
+        <div class="modal-actions">
+          <button type="button" class="btn" id="btnCancel">Cancel</button>
+          <button type="submit" class="btn-confirm" id="btnSave">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toastBox"></div>
+
+  <script src="app.js"></script>
+  <script>
+    const API = (path, opt={}) => fetch(`/api${path}`, opt);
+    let ROWS = [];
+    let editingId = null;
+
+    initClock('nowTime');
+
+    function showToast(msg){
+      const box = document.getElementById('toastBox');
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      box.appendChild(t);
+      requestAnimationFrame(() => t.classList.add('show'));
+      setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 250); }, 2500);
+    }
+
+    function openModal(create=true, row=null){
+      document.getElementById('modal').classList.remove('hidden');
+      document.getElementById('modalTitle').textContent = create ? 'New Sensor' : `Edit Sensor: ${row.id}`;
+      document.getElementById('f_id').disabled = !create;
+      if (create){
+        editingId = null;
+        f_id.value = ''; f_type.value=''; f_status.value='Available';
+        f_battery.value = 100; f_cal.value=''; f_ship.value='';
+      } else {
+        editingId = row.id;
+        f_id.value = row.id; f_type.value = row.type; f_status.value = row.status;
+        f_battery.value = row.battery ?? 100;
+        f_cal.value = row.last_calibrated ? row.last_calibrated : '';
+        f_ship.value = row.last_used_on_ship ?? '';
+      }
+    }
+    function closeModal(){ document.getElementById('modal').classList.add('hidden'); }
+
+    async function load(){
+      const res = await API('/master/sensors');
+      ROWS = await res.json();
+      render();
+    }
+
+    function render(){
+      const q = document.getElementById('q').value.trim().toLowerCase();
+      let rows = ROWS;
+      if (q){
+        rows = rows.filter(r =>
+          r.id.toLowerCase().includes(q) ||
+          (r.type||'').toLowerCase().includes(q) ||
+          (r.last_used_on_ship||'').toLowerCase().includes(q)
+        );
+      }
+      const body = document.getElementById('tblBody');
+      if (!rows.length){ body.innerHTML = '<tr><td colspan="7">No sensors found.</td></tr>'; return; }
+      body.innerHTML = rows.map(r => `
+        <tr>
+          <td>${r.id}</td>
+          <td>${r.type||'—'}</td>
+          <td>${r.status||'—'}</td>
+          <td>${r.battery ?? '—'}</td>
+          <td>${r.last_calibrated || '—'}</td>
+          <td>${r.last_used_on_ship || '—'}</td>
+          <td>
+            <button class="btn" onclick="edit('${r.id}')">Edit</button>
+            <button class="btn" onclick="calibrate('${r.id}')">Calibrate</button>
+            <button class="btn-danger" onclick="del('${r.id}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function save(e){
+      e.preventDefault();
+      const payload = {
+        id: f_id.value.trim(),
+        type: f_type.value.trim(),
+        status: f_status.value,
+        battery: parseInt(f_battery.value||'100', 10),
+        last_calibrated: f_cal.value || null,
+        last_used_on_ship: f_ship.value.trim() || null
+      };
+      if (!editingId){
+        const r = await API('/master/sensors', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        if (!r.ok){ showToast('Create failed'); return; }
+        showToast('Sensor created');
+      } else {
+        delete payload.id;
+        const r = await API(`/master/sensors/${editingId}`, {
+          method: 'PUT', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        if (!r.ok){ showToast('Update failed'); return; }
+        showToast('Sensor updated');
+      }
+      closeModal(); await load();
+    }
+
+    async function edit(id){
+      const row = ROWS.find(x => x.id === id);
+      if (!row) return;
+      openModal(false, row);
+    }
+
+    async function del(id){
+      if (!confirm(`Delete sensor ${id}? This cannot be undone.`)) return;
+      const r = await API(`/master/sensors/${id}`, { method: 'DELETE' });
+      if (!r.ok){
+        const msg = await r.text();
+        showToast(msg || 'Delete failed (is the sensor assigned?)');
+        return;
+      }
+      showToast('Sensor deleted');
+      await load();
+    }
+
+    async function calibrate(id){
+      const r = await API(`/master/sensors/${id}/calibrate`, { method: 'POST' });
+      if (!r.ok){ showToast('Calibrate failed'); return; }
+      showToast('Calibrated today');
+      await load();
+    }
+
+    // Events
+    document.getElementById('btnNew').onclick = () => openModal(true);
+    document.getElementById('btnCancel').onclick = closeModal;
+    document.getElementById('f').addEventListener('submit', save);
+    document.getElementById('q').addEventListener('input', render);
+
+    // Go
+    load();
+  </script>
+</body>
+</html>

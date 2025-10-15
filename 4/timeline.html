@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Event Timeline – Cochin Shipyard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="styles.css" rel="stylesheet" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <a href="index.html" class="brand-title link">⟵ Dashboard</a>
+      <span class="brand-divider">|</span>
+      <span class="brand-title">Event Timeline</span>
+    </div>
+    <div class="userbox">
+      <span>Time: <strong id="nowTime">—</strong></span>
+    </div>
+  </header>
+
+  <main class="inventory-layout">
+    <div class="filters-row">
+      <input id="fltShip" class="input" placeholder="Ship ID (e.g., MTGREATMANTA)" />
+      <input id="fltTank" class="input" type="number" placeholder="Tank ID" />
+      <select id="fltSeverity" class="input">
+        <option value="">All severities</option>
+        <option value="Danger">Danger</option>
+        <option value="Warning">Warning</option>
+        <option value="OK">OK</option>
+      </select>
+      <select id="fltSince" class="input">
+        <option value="60">Last 60 min</option>
+        <option value="240">Last 4 hours</option>
+        <option value="1440">Last 24 hours</option>
+        <option value="10080">Last 7 days</option>
+      </select>
+      <button id="btnRefreshTL" class="btn">Refresh</button>
+      <button id="btnExportTL" class="btn">Export CSV</button>
+    </div>
+
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Ship</th>
+            <th>Tank</th>
+            <th>Severity</th>
+            <th>Event</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="timelineBody"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    initClock('nowTime');
+    initTimelinePage();
+  </script>
+</body>
+</html>

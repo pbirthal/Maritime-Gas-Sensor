@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Sensor Inventory – Cochin Shipyard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="styles.css" rel="stylesheet" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <a href="index.html" class="brand-title link">Dashboard</a>
+      <span class="brand-divider">|</span>
+      <span class="brand-title">Equipment Inventory</span>
+    </div>
+    <div class="userbox">
+      <span>Username: <strong>abc</strong></span>
+      <span>Time: <strong id="nowTime">—</strong></span>
+    </div>
+  </header>
+
+  <main class="inventory-layout">
+    <h1>Master Sensor Inventory</h1>
+    <p>Click on a row to view the detailed event log for a device.</p>
+    
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Device ID</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Battery</th>
+            <th>Last Calibrated</th>
+            <th>Location / Last Used</th>
+          </tr>
+        </thead>
+        <tbody id="sensorTableBody">
+          </tbody>
+      </table>
+    </div>
+  </main>
+
+  <div id="logModal" class="modal hidden">
+    <div class="modal-card wide">
+      <h3 id="modalTitle">Sensor Log: —</h3>
+      <div id="modalSensorInfo" class="sensor-info-grid">
+        </div>
+      <h4>Event History</h4>
+      <div id="logEntries" class="log-entries-container">
+        </div>
+      <div class="modal-actions">
+        <button class="btn" id="closeLogModal">Close</button>
+      </div>
+    </div>
+  </div>
+  <script src="mock_api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    // Boot the Inventory Page
+    initClock('nowTime');
+    initInventoryPage();
+  </script>
+</body>
+</html>
