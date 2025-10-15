@@ -712,29 +712,53 @@ function renderShipKPIsWithThresholds(ship) {
 }
 
 /* Render live sensor tiles for the selected tank */
+// 
 function renderTankSensorsLiveMapToTiles(sensorsMap) {
-  const entries = Object.entries(sensorsMap || {}); // [[id,{O2,CO,LEL}], ...]
+  const entries = Object.entries(sensorsMap || {}); // [[id,{O2,CO,LEL,H2S}], ...]
   if (entries.length === 0) {
     return '<p>No live sensors reporting for this tank.</p>';
   }
   return entries.map(([sid, vals]) => {
+    // lookup inventory record to get battery% if available
+    const inv = (SENSORS_CACHE || []).find(s => s.id === sid) || {};
+    const batteryPct = inv.battery ?? '—';
+    // naive signal: show 3/5 if we have live data; you can wire a real RSSI if available
+    const strength =  vals ? 3 : 1;  // 1..5
     const o2  = (vals.O2  ?? '—');
     const co  = (vals.CO  ?? '—');
     const lel = (vals.LEL ?? '—');
     const h2s = (vals.H2S ?? '—');
+
+    // battery fill level for CSS (0..1)
+    const batLevel = (typeof batteryPct === 'number') ? Math.max(0, Math.min(1, batteryPct/100)) : 0.5;
+
     return `
-      <div class="sensor">
+      <div class="sensor" data-sensor-id="${sid}">
+        <button class="sensor-remove" title="Unassign / Remove">×</button>
+
         <div class="sensor-top">
           <div class="sensor-id">${sid}</div>
         </div>
+
         <div class="sensor-val">O₂: <strong>${o2}</strong>%</div>
         <div class="sensor-val">CO: <strong>${co}</strong> ppm</div>
         <div class="sensor-val">LEL: <strong>${lel}</strong>%</div>
-        <div class="sensor-val">H2S: <strong>${h2s}</strong>%</div>
+        <div class="sensor-val">H2S: <strong>${h2s}</strong> ppm</div>
+
+        <div class="sensor-meta">
+          <span class="battery" title="Battery">
+            <span class="bat-icon"><span class="bat-fill" style="--level:${batLevel}"></span></span>
+            <span>${batteryPct}%</span>
+          </span>
+          <span class="signal" title="Network" data-strength="${strength}">
+            <span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span>
+          </span>
+        </div>
       </div>
     `;
   }).join('');
 }
+
 
 function renderTankSensorsLive(sensorsMap) {
   const wrap = $('#sensorsWrap');
@@ -815,8 +839,10 @@ async function initShipPage() {
     $('#tankTitle').textContent = "No tanks configured for this ship.";
     $('#sensorsWrap').innerHTML = '<p>Please add a tank to begin assigning sensors.</p>';
   }
-
-  // poll every 2s for fresh values + live sensors
+  // ✅ Fetch permits and render the table
+const permitsRaw = await fetchPermitsForShip(currentShip.id);
+renderPermitSummary(normalizePermits(permitsRaw));
+// poll every 2s for fresh values + live sensors
   window.__shipPoll && clearInterval(window.__shipPoll);
   window.__shipPoll = setInterval(async () => {
     try {
@@ -934,6 +960,29 @@ function renderSensorsForTank(tank) {
 }
 
 function setupShipPageEventListeners(shipCtx) {
+  // remove/unassign a sensor from this tank (UI-first; best-effort API)
+$('#sensorsWrap') && $('#sensorsWrap').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.sensor-remove');
+  if (!btn) return;
+  const tile = btn.closest('.sensor');
+  const sensorId = tile?.dataset?.sensorId;
+  if (!sensorId) return;
+
+  if (!confirm(`Unassign sensor ${sensorId} from this tank?`)) return;
+
+  // Best-effort API (adjust if your backend uses a different route)
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/ships/${shipCtx.id}/tanks/${currentTankId}/sensors/${encodeURIComponent(sensorId)}`, {
+      method: 'DELETE'
+    });
+    // If API not implemented, still proceed with UI removal
+  } catch {}
+
+  // Remove from UI immediately
+  tile.remove();
+  showToast(`Sensor ${sensorId} removed`);
+});
+
   const addTankModal = $('#addTankModal');
   $('#addTankBtn') && ($('#addTankBtn').onclick = () => {
     const select = $('#newTankType');
@@ -1170,6 +1219,69 @@ function showDockYardShipsWIP() {
   });
   modal.style.display = "block";
 }
+function renderPermitSummary(perms){
+  const tb = document.getElementById('permitSummaryBody');
+  if (!tb) return;
+  if (!Array.isArray(perms) || !perms.length){
+    tb.innerHTML = `<tr><td colspan="7">No permits found.</td></tr>`;
+    return;
+    }
+  tb.innerHTML = perms.map(p => {
+    const statusClass =
+      p.status?.toLowerCase() === 'open'    ? 'open' :
+      p.status?.toLowerCase() === 'pending' ? 'pending' : 'closed';
+    const issued  = p.issued_at  ? new Date(p.issued_at).toLocaleString()  : '—';
+    const expires = p.expires_at ? new Date(p.expires_at).toLocaleString() : '—';
+    return `
+      <tr>
+        <td>${p.id ?? '—'}</td>
+        <td>${p.type ?? '—'}</td>
+        <td>${p.ship_id ?? '—'}</td>
+        <td>${p.tank_id ?? '—'}</td>
+        <td>${issued}</td>
+        <td>${expires}</td>
+        <td><span class="permit-status ${statusClass}">${p.status ?? '—'}</span></td>
+      </tr>`;
+  }).join('');
+  
+}
+// Try multiple endpoints and shapes, then normalize rows for the table.
+async function fetchPermitsForShip(shipId){
+  const tryUrls = [
+    `${API_BASE_URL}/api/ships/${encodeURIComponent(shipId)}/permits`,
+    `${API_BASE_URL}/api/permits?ship_id=${encodeURIComponent(shipId)}`
+  ];
+
+  for (const url of tryUrls){
+    try{
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const arr = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : null);
+      if (arr && arr.length) return arr;
+    }catch(e){ /* ignore and try next */ }
+  }
+
+  // Fallback: if permits were embedded in ship object later
+  const ship = SHIPS_CACHE.find(s => s.id === shipId);
+  return ship?.permits || [];
+}
+
+// Map backend keys to the table row format used by renderPermitSummary()
+function normalizePermits(rawPermits){
+  return (rawPermits || []).map(p => ({
+    id:        p.id ?? p.permit_id ?? p.number ?? p.code ?? '—',
+    type:      p.type ?? p.permit_type ?? p.category ?? '—',
+    ship_id:   p.ship_id ?? p.ship ?? p.vessel_id ?? '—',
+    tank_id:   p.tank_id ?? p.tank ?? p.space_id ?? '—',
+    issued_at: p.issued_at ?? p.issued ?? p.start_at ?? p.start ?? p.created_at ?? null,
+    expires_at:p.expires_at ?? p.expiry ?? p.end_at ?? p.end ?? null,
+    status:    p.status ?? p.state ?? p.phase ?? '—'
+  }));
+}
+
+// wherever you load permits:
+
 
 function showWorkingPersonnel() {
   const modal = document.getElementById("dockyardModal");

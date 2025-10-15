@@ -65,6 +65,7 @@ body.emergency-active { animation: flashRed 0.9s infinite; }
 .modal-card,
 .table-container,
 .sensor,
+.section-title.small,
 .kpi {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -79,7 +80,7 @@ body.emergency-active { animation: flashRed 0.9s infinite; }
 .stat-value{font-size:28px;font-weight:700;margin-top:6px;color:var(--text)}
 
 .section-title{font-size:18px;font-weight:800;letter-spacing:.3px;margin:2px 0;color:var(--text)}
-.section-title.small{font-size:14px;font-weight:700;color:var(--muted)}
+/* .section-title.small{font-size:14px;font-weight:700;color:var(--muted)} */
 
 /* ========== BUTTONS & LINKS ========== */
 .btn,.btn-danger,.btn-warn,.btn-confirm{
@@ -378,3 +379,155 @@ body.theme-dark .data-table tbody tr:hover{ background:#19324a; }
 
 .hidden { display: none !important; }
 .btn.small { padding: 6px 10px; font-size: 12px; }
+/* ===== BIG RED ACK BUTTON ===== */
+.btn-ack{
+  align-items:center;
+  font-size: 18px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  letter-spacing: .2px;
+  box-shadow: var(--shadow-2);
+}
+.btn-ack:hover{ transform: translateY(-1px); }
+.btn-ack:active{ transform: translateY(0); }
+
+/* ===== SENSOR TILE: header actions (delete) ===== */
+.sensor{
+  position: relative;
+  overflow: hidden;
+}
+.sensor-remove{
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 28px; height: 28px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: #9aa6b2;
+  cursor: pointer;
+  font-weight: 800;
+}
+.sensor-remove:hover{
+  background:#ffe8e8; color:#b91c1c; border-color:#fecaca;
+}
+
+/* ===== SENSOR META ROW (battery + signal) ===== */
+.sensor-meta{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-top:8px; font-size:12px; color:var(--muted);
+}
+
+/* Battery pill (readable on light/dark) */
+.battery{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:4px 8px; border-radius:999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.bat-icon{
+  position: relative; display:inline-block;
+  width: 20px; height: 10px; border:1px solid #9aa6b2; border-radius:2px;
+}
+.bat-icon::after{ /* cap */
+  content:""; position:absolute; right:-3px; top:2px; width:2px; height:6px;
+  background:#9aa6b2; border-radius:1px;
+}
+.bat-fill{
+  --level: 0.5; /* default 50% */
+  position:absolute; left:0; top:0; bottom:0;
+  width: calc(var(--level) * 100%);
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+/* Network signal (bars) driven by --signal (0..1) */
+.signal{
+  display:inline-flex; align-items:end; gap:2px;
+}
+.sig-bar{
+  width:3px; background:#cbd5e1; border-radius:2px;
+  height: 6px; opacity:.6;
+}
+.signal[data-strength="1"] .sig-bar:nth-child(-n+1),
+.signal[data-strength="2"] .sig-bar:nth-child(-n+2),
+.signal[data-strength="3"] .sig-bar:nth-child(-n+3),
+.signal[data-strength="4"] .sig-bar:nth-child(-n+4),
+.signal[data-strength="5"] .sig-bar:nth-child(-n+5){
+  background:#10b981; opacity:1;
+}
+.sig-bar:nth-child(1){ height:6px }
+.sig-bar:nth-child(2){ height:8px }
+.sig-bar:nth-child(3){ height:10px }
+.sig-bar:nth-child(4){ height:12px }
+.sig-bar:nth-child(5){ height:14px }
+
+/* ===== Permit Summary (table card) ===== */
+.permit-card{
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
+  padding: 12px;
+}
+
+.permit-table-wrap{
+  overflow: auto;                /* scroll if too many columns */
+  border-radius: calc(var(--radius) - 4px);
+  border: 1px solid var(--border);
+}
+
+.permit-table{
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+}
+
+.permit-table thead th{
+  position: sticky; top: 0;
+  background: var(--panel-2);
+  color: #334155;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 700;
+}
+
+.permit-table tbody td{
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.permit-table tbody tr:nth-child(odd){
+  background: color-mix(in srgb, var(--panel-2) 45%, transparent);
+}
+
+.permit-table tbody tr:hover{
+  background: color-mix(in srgb, var(--blue) 8%, transparent);
+}
+
+/* rounded corners on the outer table */
+.permit-table thead tr:first-child th:first-child { border-top-left-radius: calc(var(--radius) - 6px); }
+.permit-table thead tr:first-child th:last-child  { border-top-right-radius: calc(var(--radius) - 6px); }
+.permit-table tbody tr:last-child td:first-child  { border-bottom-left-radius: calc(var(--radius) - 6px); }
+.permit-table tbody tr:last-child td:last-child   { border-bottom-right-radius: calc(var(--radius) - 6px); }
+
+/* status chips */
+.permit-status{
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.permit-status.open    { background:#ecfdf5; color:#065f46; border:1px solid #bbf7d0; }
+.permit-status.pending { background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
+.permit-status.closed  { background:#eef2f7; color:#475569; border:1px solid #e5eaf1; }
+
+/* compact on small screens */
+@media (max-width: 720px){
+  .permit-table { font-size: 13px; }
+  .permit-table thead th, .permit-table tbody td { padding: 8px 10px; }
+}

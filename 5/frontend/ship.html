@@ -32,7 +32,7 @@
       <nav class="tanknav" id="tankNav">
         </nav>
       <button class="btn" id="addTankBtn">+ Add New Tank</button>
-
+        
       <div class="logcard">
         <div class="stat-title">Totals</div>
         <ul class="plain">
@@ -40,16 +40,22 @@
           <li>Spaces in Warning: <strong id="totWarn">—</strong></li>
           <li>Spaces in Danger: <strong id="totDanger">—</strong></li>
         </ul>
-
         <div class="stat-title mt">Alarm Logs</div>
         <div id="alarmLogs" class="logs"></div>
+          
       </div>
     </aside>
 
-    <main class="maincol">
+ 
+  <main class="maincol">
       <h2 class="section-title" id="tankTitle">Avg. Readings —</h2>
         <!-- Thresholds display (add this under the KPI tiles) -->
-      <div id="thresholdInfo" class="kpi-thresholds muted"></div>
+     <div id="thresholdInfo" class="kpi-thresholds muted"></div>
+      
+      <div class="actions">
+          <button class="btn-danger btn-ack" id="ackBtn">Acknowledge Alarm</button>
+          <button class="btn-warn" id="evacBtn">Initiate Evacuation Protocol</button>
+        </div>
       <div class="kpis">
 
         <div class="kpi" data-sensor="O2">
@@ -73,11 +79,33 @@
           <div class="spark" id="sparkH2S"></div>
         </div>
       </div>
-
       <div class="section-title small">Individual Sensors</div>
       <div id="sensorsWrap" class="sensors-grid">
         </div>
-      <div class="permits-actions">
+      
+        <section class="permit-card">
+  <h3 class="section-title small">Permit Summary</h3>
+  <div class="permit-table-wrap">
+    <table class="permit-table">
+      <thead>
+        <tr>
+          <th>Permit #</th>
+          <th>Type</th>
+          <th>Ship</th>
+          <th>Tank</th>
+          <th>Issued</th>
+          <th>Expires</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="permitSummaryBody">
+        <!-- rows injected by JS -->
+      </tbody>
+    </table>
+  </div>
+</section>
+
+      <!-- <div class="permits-actions">
         <div class="permits">
           <div class="section-title small">Permit Summary</div>
           <ul class="plain">
@@ -88,11 +116,8 @@
             <li>Hot Work Permit: <input type="checkbox" /></li>
           </ul>
         </div>
-        <div class="actions">
-          <button class="btn" id="ackBtn">Ack Alarm</button>
-          <button class="btn-warn" id="evacBtn">Initiate Evacuation Protocol</button>
-        </div>
-      </div>
+        
+      </div> -->
     </main>
   </div>
 
