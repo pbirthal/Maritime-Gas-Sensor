@@ -10,7 +10,7 @@ import threading
 import paho.mqtt.client as mqtt
 import os, io, csv
 from fastapi.responses import StreamingResponse, JSONResponse
-
+from fastapi.staticfiles import StaticFiles
 
 # --- In-memory live cache for quick UI reads (survives process lifetime) ---
 # LIVE_CACHE[(ship_id, tank_id)] = {
@@ -33,6 +33,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
+ui_path = os.path.join(os.path.dirname(__file__), "ui")
+app.mount("/nw-ui/maritime_gas_sensor", StaticFiles(directory=ui_path, html=True), name="maritime_ui")
 
 # --- NEW: Global default thresholds (used if per-tank thresholds not set) ---
 DEFAULT_THRESHOLDS = {
